@@ -2,6 +2,10 @@ import argparse
 from subprocess import call, Popen
 
 def run(bag_file, key_frame_file):
+    call(['mkdir', 'depth_image'])
+    call(['mkdir', 'point_clouds'])
+    call(['mkdir', 'point_clouds_timestamp'])
+    call(['mkdir', 'selected_depth_image'])
     call(['python', 'get_time_stamp_and_depth_images.py',bag_file, 'timestamp.txt'])
     call(['python', 'match.py', key_frame_file, 'timestamp.txt'])
     call(['bash', 'select_depth_image.sh'])

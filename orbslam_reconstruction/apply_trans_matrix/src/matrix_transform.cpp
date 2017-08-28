@@ -31,7 +31,7 @@ main (int argc, char** argv)
   std::string line_2;
 	std::string point_cloud_path;
 
-	pcl::visualization::PCLVisualizer viewer ("Matrix transformation example");
+	//pcl::visualization::PCLVisualizer viewer ("Matrix transformation example");
 	pcl::PointCloud<pcl::PointXYZ>::Ptr result_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
 	pcl::PointCloud<pcl::PointXYZ>::Ptr source_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
 	pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
@@ -65,15 +65,15 @@ main (int argc, char** argv)
 	}
 
   pcl::io::savePLYFile("good_result.ply", *result_cloud);
-  viewer.addCoordinateSystem (1.0, "cloud", 0);
-  viewer.setBackgroundColor(0.05, 0.05, 0.05, 0); // Setting background to a dark grey
+  //viewer.addCoordinateSystem (1.0, "cloud", 0);
+  //viewer.setBackgroundColor(0.05, 0.05, 0.05, 0); // Setting background to a dark grey
   //viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "original_first_cloud");
   //viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud_578");
   //viewer.setPosition(800, 400); // Setting visualiser window position
 
-  while (!viewer.wasStopped ()) { // Display the visualiser until 'q' key is pressed
-    viewer.spinOnce ();
-  }
+  //while (!viewer.wasStopped ()) { // Display the visualiser until 'q' key is pressed
+    //viewer.spinOnce ();
+  //}
 
   return 0;
 }
