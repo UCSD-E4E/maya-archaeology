@@ -58,7 +58,17 @@ Then run
 python run.py <.bag file> <.txt trajectory file>
 ```
 
-Note: These specific scripts work only for Kinect version 1. To make it for different cameras, you need to change generate_pointcloud_kinect1.py file. Substitute focalLength, centerX, centerY, scalingFactor with your camera specs. You also need to modify get_time_stamp_and_depth_images.py to choose the right rostopic.
+The result will be stored in downsampled_1.ply.
+
+### Notes: 
+
+These scripts depend on pcl library.
+
+You can change the downsample rate by modifying the parameters of setLeafSize() function in downsample.cpp
+
+These specific scripts work only for Kinect version 1. To make it work for different cameras, you need to change generate_pointcloud_kinect1.py file. Substitute focalLength, centerX, centerY, scalingFactor with your camera specs. 
+
+You also need to modify get_time_stamp_and_depth_images.py to choose the right rostopic.
 
 
 
