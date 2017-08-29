@@ -2,26 +2,27 @@
 various pipelines for slam, registration, error comparison algorithms for maya tunnel scanning
 
 ## go-icp script
+[Go-ICP](http://jlyang.org/go-icp/) is a registration algorithm for 3d point clouds with global optimization. However, it needs nornalized models in txt file format as input. This container with script does pre-processing to normalize (values in \[-1,1\]) any ply files passed as input, generate the registration matrix (GoICP), register the reading model to the reference model, and calculate the error between the two models using [PCL](http://pointclouds.org/).
+
 To setup initially and run:
 Follow the instructions [here](https://github.com/waseemkhan96/go-icp-docker) to setup a docker image for the dependencies
 
-To run 
-After inside docker container (/root/maya-archaeology/scripts/)
-Edit the config.txt to adjust the parameters for registration
+Inside the docker container (/root/maya-archaeology/scripts/)  
+Edit the config.txt to adjust the parameters for registration and then run
 ```
-python go-icp.py lidar.ply slam.ply
+python go-icp.py reference.ply reading.ply
 ```
-where lidar.ply and slam.ply are the reference and reading models, respectively
+where for example reference.ply would be the Ground Truth (lidar model) and reading.ply would be a Test (slam model). The script should output point to point error (RMSE of distance between closest points) and point to plane error (RMSE of distance between a point and its closest point's plane)
 
 Model Files will be located in 
 ```go-icp-script/models/```  
-lidar.ply (original reference file)  
+lidar.ply (original reference model)  
 mat.txt (transformation matrix file)  
-slam-t.ply (transformed slam file)  
-error-p2p.pcd (error file of point to point error)  
-error-p2pl.pcd (error file of point to plane error)  
+slam-t.ply (transformed reading model)  
+error-p2p.pcd (error model of point to point error)  
+error-p2pl.pcd (error model of point to plane error)  
 
-Make sure to copy the results in go-icp-script/models to the $MODEL_DIR(/models in container) that was volume mounted.
+Make sure to copy the results in go-icp-script/models/reading (where reading is the name of the reading.ply file) to the $MODEL_DIR (/models in container) that was volume mounted to save the results.
 
 If X forwarding is enabled when starting the docker container, after running the registration and generating a models folder inside go-icp-script folder, error pcd files in the go-icp-script/models folder can be viewed with pcl_viewer
 ```
