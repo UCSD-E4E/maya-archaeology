@@ -1,12 +1,13 @@
 # maya-archaeology
 various pipelines for slam, registration, error comparison algorithms for maya tunnel scanning
 
-## go-icp script
+## Go-ICP Script
 [Go-ICP](http://jlyang.org/go-icp/) is a registration algorithm for 3d point clouds with global optimization. However, it needs nornalized models in txt file format as input. This container with script does pre-processing to normalize (values in \[-1,1\]) any ply files passed as input, generate the registration matrix (GoICP), register the reading model to the reference model, and calculate the error between the two models using [PCL](http://pointclouds.org/).
 
-To setup initially and run:
-Follow the instructions [here](https://github.com/waseemkhan96/go-icp-docker) to setup a docker image for the dependencies
+### To Setup Initially and Run:
+Follow the instructions [here](https://hub.docker.com/r/wasd/go-icp-docker/) to setup a docker image for the dependencies
 
+### Details about Running
 Inside the docker container (/root/maya-archaeology/scripts/)  
 Edit the config.txt to adjust the parameters for registration and then run
 ```
@@ -14,6 +15,7 @@ python go-icp.py reference.ply reading.ply
 ```
 where for example reference.ply would be the Ground Truth (lidar model) and reading.ply would be a Test (slam model). The script should output point to point error (RMSE of distance between closest points) and point to plane error (RMSE of distance between a point and its closest point's plane)
 
+### Viewing Results
 Model Files will be located in 
 ```go-icp-script/models/```  
 lidar.ply (original reference model)  
