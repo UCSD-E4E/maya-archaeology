@@ -4,7 +4,7 @@ various pipelines for slam, registration, error comparison algorithms for maya t
 ## Go-ICP Script
 [Go-ICP](http://jlyang.org/go-icp/) is a registration algorithm for 3d point clouds with global optimization. However, it needs nornalized models in txt file format as input. This container with script does pre-processing to normalize (values in \[-1,1\]) any ply files passed as input, generate the registration matrix (GoICP), register the reading model to the reference model, and calculate the error between the two models using [PCL](http://pointclouds.org/).
 
-(Generated Example) Error Heatmap between Two Head Scan 3d Point Clouds
+(Generated Example) Error Heatmap between Two Head Scan 3d Point Clouds  
 ![error heatmap gif](https://github.com/UCSD-E4E/maya-archaeology/blob/master/images/error-p2pl.gif)
 
 ### To Setup Initially and Run:
