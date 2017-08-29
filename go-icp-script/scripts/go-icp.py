@@ -53,7 +53,7 @@ configFile = models_dir + 'config.txt'
 
 call(['touch', models_dir+"out.txt"])
 
-call(['time', 'GoICP', models_dir + 'lidar.txt', models_dir + 'slam.txt', str(NdDownsampled), configFile, models_dir + 'out.txt'])
+call(['GoICP', models_dir + 'lidar.txt', models_dir + 'slam.txt', str(NdDownsampled), configFile, models_dir + 'out.txt'])
 
 f = open(models_dir + "out.txt","r")
 dat = f.read()
