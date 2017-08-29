@@ -18,9 +18,9 @@ where for example reference.ply would be the Ground Truth (lidar model) and read
 ### Viewing Results
 Model Files will be located in 
 ```go-icp-script/models/```  
-lidar.ply (original reference model)  
+reference.ply (original reference model)  
 mat.txt (transformation matrix file)  
-slam-t.ply (transformed reading model)  
+reading-t.ply (transformed reading model)  
 error-p2p.pcd (error model of point to point error)  
 error-p2pl.pcd (error model of point to plane error)  
 

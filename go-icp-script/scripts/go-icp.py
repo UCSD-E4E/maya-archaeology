@@ -37,7 +37,7 @@ call(['sed', '-i', '-e', "1,9d;11d", models_dir + 'slam.txt'])
 call(['sed', '-i', 's/POINTS //', models_dir + 'slam.txt'])
 
 call(['pcl_normal_estimation', 'sc1.pcd', models_dir + 'sc1-n.pcd', '-k', '6'])
-call(['pcl_pcd2ply', models_dir + 'sc1-n.pcd', models_dir + 'lidar.ply'])
+call(['pcl_pcd2ply', models_dir + 'sc1-n.pcd', models_dir + plyfile1])
 
 f = open("centroid.txt", "r")
 dat = f.read()
@@ -78,7 +78,7 @@ f.close()
 
 call(['../build/./pcd_transform'])
 call(['pcl_normal_estimation', 'sc2-t.pcd', models_dir + 'sc2-tn.pcd', '-k', '6'])
-call(['pcl_pcd2ply', models_dir + 'sc2-tn.pcd', models_dir + 'slam-t.ply'])
+call(['pcl_pcd2ply', models_dir + 'sc2-tn.pcd', models_dir + plyfile2[:-4] +'-t.ply'])
 
 call(['pcl_compute_cloud_error', 'sc1.pcd', 'sc2-t.pcd', models_dir + 'error-p2p.pcd', '-correspondence', 'nn'])
 call(['pcl_compute_cloud_error', models_dir + 'sc1-n.pcd', models_dir + 'sc2-tn.pcd', models_dir + 'error-p2pl.pcd', '-correspondence', 'nnplane'])
