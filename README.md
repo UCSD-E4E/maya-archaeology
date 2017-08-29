@@ -2,32 +2,40 @@
 various pipelines for slam, registration, error comparison algorithms for maya tunnel scanning
 
 ## go-icp script
-	install GoICP
-	install PCL
-	
-To install:
-```
-cd go-icp-script
-mkdir build
-cd build
-cmake ..
-make
-```
+To setup initially and run:
+Follow the instructions [here](https://github.com/waseemkhan96/go-icp-docker) to setup a docker image for the dependencies
 
-To run (config.txt - adjust parameters for registration)
+To run 
+After inside docker container (/root/maya-archaeology/scripts/)
+Edit the config.txt to adjust the parameters for registration
 ```
-cd go-icp-script/scripts
 python go-icp.py lidar.ply slam.ply
 ```
 where lidar.ply and slam.ply are the reference and reading models, respectively
 
 Model Files will be located in 
 ```go-icp-script/models/```
-	-> lidar.ply (original reference file)
-	-> mat.txt (transformation matrix file)
-	-> slam-t.ply (transformed slam file)
-	-> error-p2p.pcd (error file of point to point error)
-	-> error-p2pl.pcd (error file of point to plane error)
+lidar.ply (original reference file)
+mat.txt (transformation matrix file)
+slam-t.ply (transformed slam file)
+error-p2p.pcd (error file of point to point error)
+error-p2pl.pcd (error file of point to plane error)
+
+Make sure to copy the results to the $MODEL_DIR that was volume mounted.
+If X forwarding is enabled when starting the docker container, the error pcd files can be viewed with pcl_viewer
+```
+docker run -it --rm \
+  -v $MODEL_DIR:/models/ \
+  -w=/root/maya-archaeology/go-icp-script/models \
+  -e DISPLAY=$DISPLAY \
+  -v /tmp/.X11-unix:/tmp/.X11-unix \
+  wasd/go-icp-docker
+pcl_viewer error-p2pl.pcd
+```
+Otherwise, they can be converted to ply by running, for example:
+```
+pcl1.8_pcd2ply error-p2pl.pcd error-p2pl.ply
+```
 
 ## orbslam_reconstruction
 
