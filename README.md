@@ -14,22 +14,17 @@ python go-icp.py lidar.ply slam.ply
 where lidar.ply and slam.ply are the reference and reading models, respectively
 
 Model Files will be located in 
-```go-icp-script/models/```
-lidar.ply (original reference file)
-mat.txt (transformation matrix file)
-slam-t.ply (transformed slam file)
-error-p2p.pcd (error file of point to point error)
-error-p2pl.pcd (error file of point to plane error)
+```go-icp-script/models/```  
+lidar.ply (original reference file)  
+mat.txt (transformation matrix file)  
+slam-t.ply (transformed slam file)  
+error-p2p.pcd (error file of point to point error)  
+error-p2pl.pcd (error file of point to plane error)  
 
-Make sure to copy the results to the $MODEL_DIR that was volume mounted.
-If X forwarding is enabled when starting the docker container, the error pcd files can be viewed with pcl_viewer
+Make sure to copy the results in go-icp-script/models to the $MODEL_DIR(/models in container) that was volume mounted.
+
+If X forwarding is enabled when starting the docker container, after running the registration and generating a models folder inside go-icp-script folder, error pcd files in the go-icp-script/models folder can be viewed with pcl_viewer
 ```
-docker run -it --rm \
-  -v $MODEL_DIR:/models/ \
-  -w=/root/maya-archaeology/go-icp-script/models \
-  -e DISPLAY=$DISPLAY \
-  -v /tmp/.X11-unix:/tmp/.X11-unix \
-  wasd/go-icp-docker
 pcl_viewer error-p2pl.pcd
 ```
 Otherwise, they can be converted to ply by running, for example:
