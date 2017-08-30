@@ -1,0 +1,26 @@
+<launch>
+  <arg name="record_prefix" default="realsense" />
+  <arg name="record_all" default="false" />
+
+  <group if="$(arg record_all)">
+    <node pkg="rosbag" type="record" name="rosbag_record_realsense"
+          args="-o $(arg record_prefix) -a" />
+  </group>
+
+  <group unless="$(arg record_all)">
+    <node pkg="rosbag" type="record" name="rosbag_record_realsense"
+          args="-o $(arg record_prefix) /camera/color/camera_info
+                                     /camera/color/image_raw
+                                     /camera/depth/camera_info
+                                     /camera/depth/image_raw
+                                     /camera/driver/parameter_descriptions
+                                     /camera/driver/parameter_updates
+                                     /camera/fisheye/camera_info
+                                     /camera/fisheye/image_raw
+                                     /camera/imu/data_raw
+                                     /camera/nodelet_manager/bond
+                                     /tf
+                                     /tf_static" />
+  </group>
+
+</launch>

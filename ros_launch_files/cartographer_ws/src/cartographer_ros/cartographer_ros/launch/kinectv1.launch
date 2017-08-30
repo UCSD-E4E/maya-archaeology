@@ -1,0 +1,79 @@
+<!--
+  Copyright 2016 The Cartographer Authors
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+
+<launch>
+  
+  <!--
+  <arg name="record" default="true" />
+  <arg name="record_prefix" default="kinectv2" />
+
+  <arg name="playback" default="false" />
+  <arg name="playback_file" default="" />
+  -->
+
+  <include file="$(find freenect_launch)/launch/freenect.launch">
+  </include>
+
+
+  <node pkg="tinkerforge_sensors" type="tinkerforge_sensors_node" name="imu_node">
+    <param name="rate" type="int" value="500"/>
+	<!-- Note: This (rosparam) should point to a yaml config file with the IMU UID and set frame_id to 'imu_link' -->
+	<rosparam param="sensor_conf" file="$(find tinkerforge_sensors)/launch/conf.yaml" />
+  </node>
+
+
+  <node pkg="tf" type="static_transform_publisher" name="rgb_to_imu_tf"
+        args="0.0 0.0 0.0 -1.5707963268 0.0 0.0 camera_rgb_frame imu_link 100" />
+  <!-- Current IMU configuration is -90 deg about Z (yaw) -->
+
+
+  <node name="cartographer_node" pkg="cartographer_ros"
+      type="cartographer_node" args="
+          -configuration_directory $(find cartographer_ros)/configuration_files
+          -configuration_basename kinectv1.lua"
+      output="screen">
+    <remap from="points2" to="/camera/depth/points" />
+    <remap from="imu" to="/tfsensors/imu1" />
+  </node>
+
+  <node name="rviz" pkg="rviz" type="rviz" required="true"
+      args="-d $(find cartographer_ros)/configuration_files/realsense.rviz" />
+
+
+
+  <!--
+  <node pkg="rosbag" type="record" name="rosbag_record_realsense"
+        args="-o $(arg record_prefix)
+		      /camera/color/camera_info
+              /camera/color/image_raw
+              /camera/depth/camera_info
+              /camera/depth/image_raw
+              /camera/driver/parameter_descriptions
+              /camera/driver/parameter_updates
+              /camera/fisheye/camera_info
+              /camera/fisheye/image_raw
+              /camera/imu/data_raw
+              /camera/nodelet_manager/bond
+              /tf
+              /tf_static"
+        if="$(arg record)" />
+
+  <node pkg="rosbag" type="play" name="rosbag_play_realsense"
+        args="$(arg playback_file) -d 2 <DOUBLE_DASH_REMOVED_FOR_XML_COMMENTS>clock"
+		if="$(arg playback)" />
+  -->
+
+</launch>
