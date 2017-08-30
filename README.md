@@ -69,7 +69,9 @@ Then run
 python run.py <.bag file> <.txt trajectory file>
 ```
 
-The result will be stored in downsampled_1.ply.
+The result will be stored in downsampled_1.ply. Here is one of the models we get,
+
+![M7-1](https://github.com/UCSD-E4E/maya-archaeology/blob/master/images/orbslam_m71.gif)
 
 ### Notes: 
 
