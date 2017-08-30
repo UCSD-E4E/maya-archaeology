@@ -1,0 +1,74 @@
+<launch>
+    
+  <arg name="record" default="true" />
+  <arg name="record_prefix" default="realsense" />
+
+  <arg name="playback" default="false" />
+  <arg name="playback_file" default="" />
+
+  <arg name="filtering" default="3" />
+
+  <arg name="SR300" default="false" />
+
+
+  <node pkg="rosbag" type="record" name="rosbag_record_realsense"
+        args="-o $(arg record_prefix)
+		      /camera/color/camera_info
+              /camera/color/image_raw/compressed
+              /camera/depth/camera_info
+              /camera/depth/image_raw
+              /camera/driver/parameter_descriptions
+              /camera/driver/parameter_updates
+              /camera/fisheye/camera_info
+              /camera/fisheye/image_raw/compressed
+              /camera/imu/data_raw
+              /camera/nodelet_manager/bond
+              /tf
+              /tf_static"
+        if="$(arg record)"/>
+
+  <param name="/camera/color/image_raw/compressed/jpeg_quality" type="int" value="85"/>
+
+  <include unless="$(arg SR300)"
+           file="zr300_nodelet_rgbd.xml">
+    <arg name="load_driver" value="false" if="$(arg playback)" />
+    <arg name="r200_dc_preset" value="$(arg filtering)" />
+  </include>
+  
+  <include if="$(arg SR300)"
+           file="sr300_nodelet_rgbd.xml">
+    <arg name="load_driver" value="false" if="$(arg playback)" />
+  </include>
+
+
+  <include file="$(find rtabmap_ros)/launch/rtabmap.launch">
+    <arg name="rgb_topic"         value="/camera/color/image_rect_color" />
+    <arg name="depth_topic"       value="/camera/depth_registered/sw_registered/image_rect_raw" />
+    <arg name="camera_info_topic" value="/camera/color/camera_info" />
+  </include>
+  
+
+  <node name="imu_resample_node" pkg="imu_resample"
+      type="imu_resample_node" >
+  </node>
+
+
+
+  <group if="$(arg playback)">
+    
+	<node pkg="image_transport" type="republish" name="decompress_image"
+          args="compressed in:=/compressed/color/image_raw out:=/camera/color/image_raw" />
+	
+	<!--
+	<node pkg="image_transport" type="republish" name="decompress_fisheye"
+          args="compressed in:=/compressed/fisheye/image_raw out:=/camera/fisheye/image_raw" />
+    -->
+
+    <node pkg="rosbag" type="play" name="rosbag_play_realsense"
+          args="$(arg playback_file) -d 2 --clock">
+      <remap from="/camera/color/image_raw/compressed" to="/compressed/color/image_raw/compressed" />
+      <remap from="/camera/fisheye/image_raw/compressed" to="/compressed/fisheye/image_raw/compressed" />
+    </node>
+  </group>
+
+</launch>

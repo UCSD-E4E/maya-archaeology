@@ -1,0 +1,63 @@
+<launch>
+    
+  <arg name="record" default="true" />
+  <arg name="record_prefix" default="kinectv2" />
+
+  <arg name="playback" default="false" />
+  <!--
+  <arg name="playback_file" default="" />
+  -->
+
+
+  <node pkg="rosbag" type="record" name="rosbag_record_kinectv2"
+        args="-o $(arg record_prefix)
+              /kinect2/bond
+              /kinect2/hd/camera_info
+              /kinect2/hd/image_color/compressed
+              /kinect2/qhd/camera_info
+              /kinect2/qhd/image_color_rect/compressed
+              /kinect2/qhd/image_depth_rect
+			  /tfsensors/imu1
+              /tf
+              /tf_static"
+        if="$(arg record)"/>
+
+ 
+  <include unless="$(arg playback)"
+           file="$(find kinect2_bridge)/launch/kinect2_bridge.launch">
+    <arg name="publish_tf" value="true" />
+    <arg name="max_depth" value="8" />
+  </include>
+
+
+  <node unless="$(arg playback)"
+        pkg="tinkerforge_sensors" type="tinkerforge_sensors_node" name="imu_node">
+    <param name="rate" type="int" value="500"/>
+	<!-- Note: This (rosparam) should point to a yaml config file with the IMU UID and set frame_id to 'imu_link' -->
+	<rosparam param="sensor_conf" file="$(find tinkerforge_sensors)/launch/conf.yaml" />
+  </node>
+
+
+  <node pkg="tf" type="static_transform_publisher" name="rgb_to_imu_tf"
+        args="0.0 0.0 0.0 0.0 0.0 1.5707963268 kinect2_ir_optical_frame imu_link 100" />
+  <!-- Current IMU configuration is -90 deg about X -->
+
+
+`
+
+  <include file="$(find rtabmap_ros)/launch/rtabmap.launch">
+    <arg name="rgb_topic"         value="/kinect2/qhd/image_color_rect" />
+    <arg name="depth_topic"       value="/kinect2/qhd/image_depth_rect" />
+    <arg name="camera_info_topic" value="/kinect2/qhd/camera_info" />
+	<arg name="frame_id"          value="kinect2_link" />
+    <arg name="database_path"     value="~/.ros/rtabmap.db"/> <!-- TODO -->
+  </include>
+  
+
+  <!--
+  <node pkg="rosbag" type="play" name="rosbag_play_kinectv2"
+        args="$(arg playback_file) -d 2 <DOUBLE DASH>clock"
+		if="$(arg playback)" />
+  -->
+
+</launch>
