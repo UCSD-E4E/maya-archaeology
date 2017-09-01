@@ -1,0 +1,15 @@
+hippo1.ply hippo2.ply ply5 0.5 0.4 100 200
+hippo1.ply hippo2.ply ply6 0.6 - 100 200
+hippo1.ply hippo2.ply ply7 - - 100 200
+hippo1.vtk hippo2.pcd vtkpcd - - 100 200
+hippo1.pcd hippo2.vtk pcdvtk - - 100 200
+hippo1.vtk hippo2.vtk vtk - - 100 200
+hippo1.vtk hippo2.ply vtkply - - 100 200
+hippo1.ply hippo2.pcd plyvtk - - 100 200
+hippo1.pcd hippo2.pcd pcd - - 100 200
+hippo1.pcd hippo2.ply pcdply - - 100 200
+hippo1.ply hippo2.pcd plypcd - - 100 200
+hippo1.ply hippo uhoh1 - - 100 200
+hippo1 hippo2.pcd uhoh2 - - 100 200
+hippo1234567.ply hippo2.pcd uhoh3 - - 100 200
+hippo1.vtk hippo123456.pcd uhoh4 - - 100 200
