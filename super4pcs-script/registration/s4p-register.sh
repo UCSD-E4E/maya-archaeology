@@ -275,6 +275,12 @@ alignReading() {
 			echo "Converting" $reading "to" $readingPCD "for alignment"
 		fi
 		$scriptsPath/./pcl_convert.sh $reading $readingPCD -f
+
+		# Remove outliers
+		if [[ "$verbose" == "true" ]]; then
+			echo "Outlier removal on" $readingPCD
+		fi
+		pcl_outlier_removal $readingPCD $readingPCD -method statistical -mean_k 10 -std_dev_mul 3
 	fi
 
 	# Parse transformation matrix outputted by Super4PCS
@@ -299,11 +305,11 @@ alignReading() {
 	if [[ "$verbose" == "true" ]]; then
 		echo "Getting point-to-point error and saving in" $output/$LOG_FILE
 	fi
-	$scriptsPath/./get_pcl_error.sh $ref $output/$ALIGNED_READING_PCD -l $output/$LOG_FILE -o $output/$REF_ERROR_PLY_PT -c nn -s $scriptsPath
+	$scriptsPath/./get_pcl_error.sh $output/$ALIGNED_READING_PCD $ref -l $output/$LOG_FILE -o $output/$REF_ERROR_PLY_PT -c nn -s $scriptsPath
 	if [[ "$verbose" == "true" ]]; then
 		echo "Getting point-to-plane error and saving in" $output/$LOG_FILE
 	fi
-	$scriptsPath/./get_pcl_error.sh $ref $output/$ALIGNED_READING_PCD -l $output/$LOG_FILE -o $output/$REF_ERROR_PLY_PLANE -c nnplane -s $scriptsPath
+	$scriptsPath/./get_pcl_error.sh $output/$ALIGNED_READING_PCD $ref -l $output/$LOG_FILE -o $output/$REF_ERROR_PLY_PLANE -c nnplane -s $scriptsPath
 }
 
 # if not keeping outputted point clouds, remove them after each S4P run.
