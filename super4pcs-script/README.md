@@ -74,6 +74,8 @@ $ export S4P_PATH=~/workspace/Super4PCS/build/
 $ ./s4p-register.sh inputs.txt -i ../testModels/ -o ../testOutput -s ../general/ -dvk
 ```
 
+Or you can also just run `registration/./runInputs.sh` :)
+
 The last 4 runs in inputs.txt should be skipped as the reading/reference files do not exist in the testModels folder.
 
 
