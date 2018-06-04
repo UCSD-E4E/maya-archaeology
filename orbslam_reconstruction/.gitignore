@@ -1,0 +1,6 @@
+depth_image/
+selected_depth_image/
+selected_frame.txt
+timestamp.txt
+*.pcd
+*.ply

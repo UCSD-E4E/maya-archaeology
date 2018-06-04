@@ -60,7 +60,7 @@ main (int argc, char** argv)
 		
   	pcl::transformPointCloud (*source_cloud, *transformed_cloud, transform);
 		*result_cloud  = *result_cloud + *transformed_cloud;
-		viewer.addPointCloud (transformed_cloud, line_2);
+		//viewer.addPointCloud (transformed_cloud, line_2);
 		i++;
 	}
 
