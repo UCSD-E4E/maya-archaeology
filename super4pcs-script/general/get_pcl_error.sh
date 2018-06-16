@@ -115,12 +115,13 @@ shift
 checkInputFiles
 
 # Fill in other flags
-while getopts 'l:o:s:c:' flag; do
+while getopts 'l:o:s:c:d:' flag; do
 	case "${flag}" in
 		l) logFilename=${OPTARG};;
 		o) output=${OPTARG};;
 		s) scriptsPath=${OPTARG};;
 		c) correspondence=${OPTARG};;
+		d) outdir=${OPTARG};;
 	esac
 done
 
@@ -146,12 +147,10 @@ done
 if [ "${output: -4}" == ".ply" ]; then
 	outputPCD=${output%.ply}.pcd
 	# Record command used in log file
-	echo "Running: $ python3 $scriptsPath/rmse_curve.py ${inputFiles[0]} ${inputFiles[1]} --out-filename $outputPCD -c $correspondence -p" | tee -a $logFilename
-	#echo "Running: $ pcl_compute_cloud_error ${inputFiles[0]} ${inputFiles[1]} $outputPCD -correspondence $correspondence" | tee -a $logFilename
+	echo "Running: $ python3 $scriptsPath/rmse_curve.py ${inputFiles[0]} ${inputFiles[1]} --out-filename $outputPCD --out-dir $outdir -c $correspondence -p" | tee -a $logFilename
 
 	echo "Saving error to" $logFilename
-	python3 $scriptsPath/rmse_curve.py ${inputFiles[0]} ${inputFiles[1]} --out-filename $outputPCD -c $correspondence -p 2>&1 | tee -a $logFilename
-	#pcl_compute_cloud_error ${inputFiles[0]} ${inputFiles[1]} $outputPCD -correspondence $correspondence 2>&1 | tee -a $logFilename
+	python3 $scriptsPath/rmse_curve.py ${inputFiles[0]} ${inputFiles[1]} --out-filename $outputPCD --out-dir $outdir -c $correspondence -p 2>&1 | tee -a $logFilename
 
 	# Convert output to ply if computing cloud error succeeded
 	if [[ $? == 0 ]]; then
@@ -163,12 +162,10 @@ if [ "${output: -4}" == ".ply" ]; then
 	fi
 else
 	# Record command used in log file
-	echo "Running: $ python3 $scriptsPath/rmse_curve.py ${inputFiles[0]} ${inputFiles[1]} --out-filename $output -c $correspondence -p" | tee -a $logFilename
-	#echo "Running: $ pcl_compute_cloud_error ${inputFiles[0]} ${inputFiles[1]} $output -correspondence $correspondence" | tee -a $logFilename
+	echo "Running: $ python3 $scriptsPath/rmse_curve.py ${inputFiles[0]} ${inputFiles[1]} --out-filename $output --out-dir $outdir -c $correspondence -p" | tee -a $logFilename
 
 	echo "Saving error to" $logFilename
-	python3 $scriptsPath/rmse_curve.py ${inputFiles[0]} ${inputFiles[1]} --out-filename $output -c $correspondence -p 2>&1 | tee -a $logFilename
-	#pcl_compute_cloud_error ${inputFiles[0]} ${inputFiles[1]} $output -correspondence $correspondence 2>&1 | tee -a $logFilename
+	python3 $scriptsPath/rmse_curve.py ${inputFiles[0]} ${inputFiles[1]} --out-filename $output --out-dir $outdir -c $correspondence -p 2>&1 | tee -a $logFilename
 fi
 
 exit 0

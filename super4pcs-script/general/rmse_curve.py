@@ -88,9 +88,9 @@ def main():
         ax.set_ylabel("RMSE")
 
         if use_log:
-            plotName = dir_out+"plot-"+correspondence+"-log.png"
+            plotName = dir_out+"/plot-"+correspondence+"-log.png"
         else:
-            plotName = dir_out+"plot-"+correspondence+".png"
+            plotName = dir_out+"/plot-"+correspondence+".png"
 
         plt.savefig(plotName);
         print("Saved as " + plotName)
