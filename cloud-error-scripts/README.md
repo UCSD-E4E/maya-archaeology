@@ -9,6 +9,8 @@ This is part of the PCL library but modified so that:
 
 ## `rmse_curve.py`
 
+__Note: the file moved to "super4pcs-script/general".__
+
 Calculates RMSE for a reading point cloud and reference point cloud for a specified number of cutoff distances between the min and max distances between all points on the reading model and their correspondiing points on the reference model. Uses the modified `compute_cloud_error.cpp`.
 
 ### Example Usage
