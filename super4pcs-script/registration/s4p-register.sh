@@ -182,7 +182,7 @@ setFilepaths() {
 	ref=$inputRoot/$ref
 	reading=$inputRoot/$reading
 	if [[ ! -z $output ]] || [[ $output == "-" ]]; then
-		output=$outputRoot/$output
+		output=$outputRoot
 		if [[ ! -d $output ]]; then
 			mkdir -p $output
 		fi
@@ -305,11 +305,11 @@ alignReading() {
 	if [[ "$verbose" == "true" ]]; then
 		echo "Getting point-to-point error and saving in" $output/$LOG_FILE
 	fi
-	$scriptsPath/./get_pcl_error.sh $output/$ALIGNED_READING_PCD $ref -l $output/$LOG_FILE -o $output/$REF_ERROR_PLY_PT -c nn -s $scriptsPath
+	$scriptsPath/./get_pcl_error.sh $output/$ALIGNED_READING_PCD $ref -l $output/$LOG_FILE -o $output/$REF_ERROR_PLY_PT -d $output -c nn -s $scriptsPath
 	if [[ "$verbose" == "true" ]]; then
 		echo "Getting point-to-plane error and saving in" $output/$LOG_FILE
 	fi
-	$scriptsPath/./get_pcl_error.sh $output/$ALIGNED_READING_PCD $ref -l $output/$LOG_FILE -o $output/$REF_ERROR_PLY_PLANE -c nnplane -s $scriptsPath
+	$scriptsPath/./get_pcl_error.sh $output/$ALIGNED_READING_PCD $ref -l $output/$LOG_FILE -o $output/$REF_ERROR_PLY_PLANE -d $output -c nnplane -s $scriptsPath
 }
 
 # if not keeping outputted point clouds, remove them after each S4P run.

@@ -21,7 +21,7 @@ def main():
     parser.add_argument('--correspondence', '-c', default="nn", help='Type of point correspondence (default: %(default)s)')
     parser.add_argument('--out-filename', default="out.pcd", help='Output 3D model with colored RMSE (ignoring cutoff) (default: %(default)s)')
     parser.add_argument('--out-dir', default="/home/e4e/workspace/super4pcs-ws/e4e-maya/", help='Directory to store plot image and output 3D model (default: %(default)s)')
-    parser.add_argument('--pcl-binary', '-bin', default="/home/e4e/workspace/pcl/build/bin/pcl_compute_cloud_error", help='Location of the PCL tool binary (default: %(default)s)')
+    parser.add_argument('--pcl-binary', '-bin', default="../../cloud-error-scripts/build/compute_cloud_error", help='Location of the PCL tool binary (default: %(default)s)')
     parser.add_argument('--plot', '-p', action='store_true', help='Plot the RMSE curve (default: %(default)s)')
     parser.add_argument('--log', '-log', action='store_true', help='Use log space instead of linear space (default: %(default)s)')
 
@@ -88,9 +88,9 @@ def main():
         ax.set_ylabel("RMSE")
 
         if use_log:
-            plotName = dir_out+"plot-"+correspondence+"-log.png"
+            plotName = dir_out+"/plot-"+correspondence+"-log.png"
         else:
-            plotName = dir_out+"plot-"+correspondence+".png"
+            plotName = dir_out+"/plot-"+correspondence+".png"
 
         plt.savefig(plotName);
         print("Saved as " + plotName)

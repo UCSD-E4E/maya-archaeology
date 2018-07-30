@@ -6,7 +6,6 @@ Super4PCS source: https://github.com/nmellado/Super4PCS
 
 These scripts are used for [UC San Diego Engineers for Exploration](http://e4e.ucsd.edu/) research program under the [Maya Archaeology project](http://e4e.ucsd.edu/maya-archaeology).
 
-For instructions on how to run these scripts in Docker, refer to the [E4E project wiki](https://github.com/UCSD-E4E/maya-archaeology/wiki/3.-Registration-algorithms#super4pcs).
 
 
 ## Scripts included
