@@ -8,5 +8,5 @@ include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
-add_executable (downsample src/downsample.cpp)
+add_executable (downsample src/voxel_grid.cpp)
 target_link_libraries (downsample ${PCL_LIBRARIES})
