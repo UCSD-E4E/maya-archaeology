@@ -14,14 +14,17 @@ import subprocess
 import shutil
 
 
+#-------------------------------------------------------
 def parse_trajectory(trajectory_file):
+#-------------------------------------------------------
     f = open(trajectory_file, 'rt')
     timestamps = [float(line.split(' ')[0]) for line in f]
     return timestamps
 
 
-def get_images(bag_file, timestamps):
-
+#-------------------------------------------------------
+def get_images(bag_file, timestamps, bag_topic):
+#-------------------------------------------------------
     bag = rosbag.Bag(bag_file)
     depth_header_size = 80
     bridge = CvBridge()
@@ -33,9 +36,9 @@ def get_images(bag_file, timestamps):
     timestamp_idx = 0
 
     previous_image = None
-    previous_timestamp = None
+    previous_timestamp = float("-inf")
 
-    for topic, msg, t in bag.read_messages(topics=['/camera/depth_registered/image_raw']):
+    for topic, msg, t in bag.read_messages(topics=[bag_topic]):
 
         # Get image and timestamp from bag file
         curr_timestamp = t.to_sec()
@@ -46,25 +49,24 @@ def get_images(bag_file, timestamps):
 
         image_selected = None
 
-        # Is the target in the past? It's not so good, but we'll associate the current image
-        if target_t < curr_timestamp:
-            image_selected = curr_image
-        # Is the target in between current and previous timestamps?
-        # If yes, add the image with the closest timestamp
-        elif previous_timestamp is not None:
-            if target_t >= previous_timestamp and target_t < curr_timestamp:
-                if np.abs(target_t - previous_timestamp) < np.abs(target_t - curr_timestamp):
-                    image_selected = previous_image
-                else:
-                    image_selected = curr_image
-        # Oh, we do not deal with a target equal or greater than the last timestamp :(
-        
-        if image_selected is not None:
+
+        while target_t <= curr_timestamp:
+            if np.abs(target_t - previous_timestamp) < np.abs(target_t - curr_timestamp):
+                image_selected = previous_image
+                print(target_t, previous_timestamp)
+            else:
+                image_selected = curr_image
+                print(target_t, curr_timestamp)
+            
             output_images.append((target_t,image_selected))
 	    #cv2.imwrite("depth_" + str(target_t) + ".png", image_selected)
             timestamp_idx += 1
-            if timestamp_idx >= len(timestamps):
-                break
+            if timestamp_idx >= len(timestamps): break
+            target_t = timestamps[timestamp_idx]
+
+
+        if timestamp_idx >= len(timestamps):
+            break
 
         previous_image = curr_image
         previous_timestamp = curr_timestamp
@@ -73,12 +75,17 @@ def get_images(bag_file, timestamps):
 
     if len(timestamps) != len(output_images):
         warnings.warn("PANIC: We did not pull exactly the same number of images as the number of timestamps!")
+        print(output_images)
+        print(timestamps)
 
+    
     return output_images
 
 
 
+#-------------------------------------------------------
 def generate_pointcloud((depth, ply_file, intrinsics)):
+#-------------------------------------------------------
 
     fx, fy, cx, cy, scalingFactor = intrinsics
 
@@ -122,23 +129,37 @@ end_header
     f.close()
 
 
-def generate_pointclouds(images, intrinsics, temp_dir, n_threads = -1):
+#-------------------------------------------------------
+def generate_all_pointclouds(traj_file, bag_file, bag_topic, intrinsics, temp_dir, n_threads = -1):
+#-------------------------------------------------------
+    timestamps = parse_trajectory(traj_file)
+    
+    print("Extracting depth images from bag file...")
+    images = get_images(bag_file, timestamps, bag_topic)
+    
     if n_threads <= 0:
         n_threads = mp.cpu_count()
 
-    
-
     data = [(depth, os.path.join(temp_dir, 'pointcloud_{0:.6f}.ply'.format(timestamp)), intrinsics) for timestamp,depth in images]
     pool = Pool(n_threads)
-    pool.map(generate_pointcloud, data)
-    
+    pool.map_async(generate_pointcloud, data).get(999999999) # map_async is used to catch interrupts
+
     f = open(os.path.join(temp_dir, 'pointclouds.txt'), 'wt')
     f.write('\n'.join(map(os.path.abspath, zip(*data)[1])))
 
 
-# Main
-if __name__ == '__main__':
+#-------------------------------------------------------
+def move(src, dst):
+#-------------------------------------------------------
+    if os.path.exists(dst):
+        os.remove(dst)
+    shutil.move(src, dst)
 
+
+
+#-------------------------------------------------------
+if __name__ == '__main__':
+#-------------------------------------------------------
     parser = argparse.ArgumentParser(description='''
     Create point clouds from a bag file and a trajectory file.
     Requires ROS with OpenCV.
@@ -147,31 +168,37 @@ if __name__ == '__main__':
     parser.add_argument('bag_file', help='Input bag file (format: bag)')
     parser.add_argument('trajectory_file', help='Input trajectory file (format: orbslam txt)')
     parser.add_argument('-j', '--num-threads', type=int, default=-1, help='Number of threads to use (default: max available CPUs)')
+    parser.add_argument('-t', '--topic', default='/camera/depth_registered/image_raw', help='Bag file topic')
     parser.add_argument('-i', '--intrinsics', metavar=('fx', 'fy', 'cx', 'cy', 'scale'), default=[525.0, 525.0, 319.5, 239.5, 5000.0], nargs=5, help='Camera intrinsics [fx fy cx cy scale] (default: %(default)s)')
-    parser.add_argument('-mem', '--memory', help='Try to limit the memory usage (a little bit) by not computing normals', action='store_true')
+    parser.add_argument('-n', '--normals', help='Compute normals on the original model (uses a lot of extra memory)', action='store_true')
     args = parser.parse_args()
 
     
     temp_dir = "temp_clouds"
     result_dir = "results"
 
-    #1
-    timestamps = parse_trajectory(args.trajectory_file)
-    
-    #2
-    images = get_images(args.bag_file, timestamps)
-    
-    #3
-    generate_pointclouds(images, args.intrinsics, temp_dir, args.num_threads)
 
-    #4
-    subprocess.call(" ".join([os.path.join('build', 'transform_concat'), args.trajectory_file, os.path.join(temp_dir, 'pointclouds.txt'), '' if args.memory else '-n']), shell=True)
+    # Parse trajectory, extract depth images from bag file, and generate point clouds
+    generate_all_pointclouds(args.trajectory_file, args.bag_file, args.topic, list(map(float, args.intrinsics)), temp_dir, args.num_threads)
 
-    #5
+
+    # Transform and concatenate all point clouds
+    subprocess.call(" ".join([os.path.join('build', 'transform_concat'), args.trajectory_file, os.path.join(temp_dir, 'pointclouds.txt'), '-n' if args.normals else '']), shell=True)
+
+
+    # Downsample the resulting point cloud
     subprocess.call(" ".join([os.path.join('build', 'downsample'), "orbslam_cloud.ply", 'orbslam_cloud_downsampled.ply']), shell=True)
-    
-    #6
-    os.remove(os.path.join(result_dir, "orbslam_cloud.ply"))
-    os.remove(os.path.join(result_dir, "orbslam_cloud_downsampled.ply"))
-    shutil.move("orbslam_cloud.ply", result_dir)
-    shutil.move("orbslam_cloud_downsampled.ply", result_dir)
+
+
+    # Colorize the downsampled point cloud
+    subprocess.call(" ".join([os.path.join('build', 'colorize'), "orbslam_cloud_downsampled.ply", 'orbslam_cloud_colored.ply']), shell=True)
+
+
+    # Copy the results to the results directory
+    output_filename1 = os.path.join(result_dir, "orbslam_cloud.ply")
+    output_filename2 = os.path.join(result_dir, "orbslam_cloud_downsampled.ply")
+    output_filename3 = os.path.join(result_dir, "orbslam_cloud_colored.ply")
+    move("orbslam_cloud.ply",             output_filename1)
+    move("orbslam_cloud_downsampled.ply", output_filename2)
+    move("orbslam_cloud_colored.ply",     output_filename3)
+

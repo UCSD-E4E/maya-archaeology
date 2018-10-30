@@ -15,6 +15,9 @@ target_link_libraries (transform_concat ${PCL_LIBRARIES})
 add_executable (downsample voxel_grid.cpp)
 target_link_libraries (downsample ${PCL_LIBRARIES})
 
+add_executable (colorize colorize.cpp)
+target_link_libraries (colorize ${PCL_LIBRARIES})
+
 find_package(OpenMP)
 if (OPENMP_FOUND)
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")

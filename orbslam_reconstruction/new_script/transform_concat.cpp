@@ -144,7 +144,7 @@ int main (int argc, char** argv)
 				//viewer.addPointCloud (transformed_cloud, line_2);
 
 				progress++;
-				cout << "\r" << 100*progress/(float)paths.size() << " %" << flush;
+				cout << "\33[2K\r" << 100*progress/(float)paths.size() << " %" << flush;
 			}
 		}
 	}
@@ -165,7 +165,7 @@ int main (int argc, char** argv)
 		computeNormals<pcl::PointXYZ>(result_cloud, normals, 10);
 		
 		pcl::concatenateFields(*result_cloud, *normals, *cloud_with_normals);
-
+		pcl::PointCloud<pcl::PointXYZ>().swap(*result_cloud);
 	}
 
 
