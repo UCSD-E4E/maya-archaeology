@@ -75,8 +75,7 @@ def get_images(bag_file, timestamps, bag_topic):
 
     if len(timestamps) != len(output_images):
         warnings.warn("PANIC: We did not pull exactly the same number of images as the number of timestamps!")
-        print(output_images)
-        print(timestamps)
+        print(str(len(output_images)) + " images and " + str(len(timestamps)) + " timestamps")
 
     
     return output_images
@@ -84,12 +83,15 @@ def get_images(bag_file, timestamps, bag_topic):
 
 
 #-------------------------------------------------------
-def generate_pointcloud((depth, ply_file, intrinsics)):
+def generate_pointcloud((depth, ply_file, intrinsics, apply_filter)):
 #-------------------------------------------------------
 
     fx, fy, cx, cy, scalingFactor = intrinsics
 
     depth = depth.astype(float) / scalingFactor
+
+    if apply_filter:
+        depth = filter(depth)
 
     print("Generating " + ply_file + "...")
 
@@ -130,17 +132,29 @@ end_header
 
 
 #-------------------------------------------------------
-def generate_all_pointclouds(traj_file, bag_file, bag_topic, intrinsics, temp_dir, n_threads = -1):
+def filter(depth, max_dist=5.0, kernel_size=7):
+#-------------------------------------------------------    
+    depth[depth > max_dist] = 0
+    
+    mask = cv2.morphologyEx(depth, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size)))
+    
+    depth[mask == 0] = 0
+
+    return depth
+
+
+#-------------------------------------------------------
+def generate_all_pointclouds(traj_file, bag_file, bag_topic, intrinsics, temp_dir, apply_filter=False, n_threads = -1):
 #-------------------------------------------------------
     timestamps = parse_trajectory(traj_file)
     
     print("Extracting depth images from bag file...")
     images = get_images(bag_file, timestamps, bag_topic)
-    
+ 
     if n_threads <= 0:
         n_threads = mp.cpu_count()
 
-    data = [(depth, os.path.join(temp_dir, 'pointcloud_{0:.6f}.ply'.format(timestamp)), intrinsics) for timestamp,depth in images]
+    data = [(depth, os.path.join(temp_dir, 'pointcloud_{0:.6f}.ply'.format(timestamp)), intrinsics, apply_filter) for timestamp,depth in images]
     pool = Pool(n_threads)
     pool.map_async(generate_pointcloud, data).get(999999999) # map_async is used to catch interrupts
 
@@ -171,6 +185,7 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--topic', default='/camera/depth_registered/image_raw', help='Bag file topic')
     parser.add_argument('-i', '--intrinsics', metavar=('fx', 'fy', 'cx', 'cy', 'scale'), default=[525.0, 525.0, 319.5, 239.5, 5000.0], nargs=5, help='Camera intrinsics [fx fy cx cy scale] (default: %(default)s)')
     parser.add_argument('-n', '--normals', help='Compute normals on the original model (uses a lot of extra memory)', action='store_true')
+    parser.add_argument('-f', '--filter', help='Apply a filter on depth images (optimized for ZR300)', action='store_true')
     args = parser.parse_args()
 
     
@@ -179,7 +194,7 @@ if __name__ == '__main__':
 
 
     # Parse trajectory, extract depth images from bag file, and generate point clouds
-    generate_all_pointclouds(args.trajectory_file, args.bag_file, args.topic, list(map(float, args.intrinsics)), temp_dir, args.num_threads)
+    generate_all_pointclouds(args.trajectory_file, args.bag_file, args.topic, list(map(float, args.intrinsics)), temp_dir, args.filter, args.num_threads)
 
 
     # Transform and concatenate all point clouds

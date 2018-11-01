@@ -179,42 +179,12 @@ int main (int argc, char** argv)
 
 	if (compute_normals)
 	{
-		pcl::io::savePLYFile(output_filename, *cloud_with_normals);
+		pcl::io::savePLYFile(output_filename, *cloud_with_normals, true);
 	}
 	else
 	{
-		pcl::io::savePLYFile(output_filename, *result_cloud);
+		pcl::io::savePLYFile(output_filename, *result_cloud, true);
 	}
-
-
-	/*
-	// Set color based on light source
-	cout << "Setting colors..." << endl;
-#pragma omp parallel for
-	for(unsigned int i = 0; i < outCloud.size(); i++)
-	{
-		Eigen::Vector3f v(points[i].x, points[i].y, points[i].z);
-		Eigen::Vector3f n((*normals)[i].normal_x, (*normals)[i].normal_y, (*normals)[i].normal_z);
-
-		Eigen::Vector3f vec = (lightSource - v).normalized();
-
-		float weight = abs(vec.dot(n));
-
-		int br = (int)(205 * weight) + 50;
-		br = max (0, min (255, br));
-
-		outCloud[i].x = v.x();
-		outCloud[i].y = v.y();
-		outCloud[i].z = v.z();
-		outCloud[i].r = br;
-		outCloud[i].g = br;
-		outCloud[i].b = br;
-	}
-	*/
-
-
-
-
 
 	return 0;
 }
