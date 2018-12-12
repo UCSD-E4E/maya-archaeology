@@ -12,6 +12,7 @@
 #include <pcl/registration/icp.h>
 #include <pcl/common/common.h>
 #include <pcl/filters/crop_box.h>
+#include <pcl/filters/voxel_grid.h>
 
 #include <pcl/visualization/pcl_visualizer.h>
 #include <boost/thread/thread.hpp>
@@ -58,6 +59,19 @@ void clearDepthMap()
 	}
 }
 
+//----------------------------------------------------------
+template<typename PointT>
+void voxelGrid (
+		typename pcl::PointCloud<PointT>::ConstPtr input,
+		typename pcl::PointCloud<PointT>::Ptr output,
+		float leaf_x, float leaf_y, float leaf_z)
+//----------------------------------------------------------
+{
+  VoxelGrid<PointT> grid;
+  grid.setInputCloud (input);
+  grid.setLeafSize (leaf_x, leaf_y, leaf_z);
+  grid.filter (*output);
+}
 
 //----------------------------------------------------------
 void showViewer(
@@ -229,6 +243,7 @@ int main (int argc, char** argv)
 	// These have a factor of 5 IIRC
 	float max_dist = 3.0f;
 	float margin_dist = 0.1f;
+	float voxel_size = 0.01f;
 
 
 	thread show_thread;
@@ -317,7 +332,9 @@ int main (int argc, char** argv)
 		//	pcl::transformPointCloud (*orig_slam_cloud, *slam_cloud, transforms[j]);
 		//}
 
-		
+	
+
+
 		pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
 		icp.setInputSource(transformed_slam_cloud);
 		icp.setInputTarget(lidar_slice_cloud);
@@ -372,8 +389,36 @@ int main (int argc, char** argv)
 
 	for (auto& t :aligned_transforms)
 	{
-		traj_out << t.matrix() << "\n";
+		traj_out
+			<< t.matrix().row(0)[0] << " " << t.matrix().row(0)[1] << " " << t.matrix().row(0)[2] << " " << t.matrix().row(0)[3] << " "
+			<< t.matrix().row(1)[0] << " " << t.matrix().row(1)[1] << " " << t.matrix().row(1)[2] << " " << t.matrix().row(1)[3] << " "
+			<< t.matrix().row(2)[0] << " " << t.matrix().row(2)[1] << " " << t.matrix().row(2)[2] << " " << t.matrix().row(2)[3] << " "
+			<< "\n";
 	}
+
+
+	cout << "Computing verification cloud" << endl;
+
+	pcl::PointCloud<pcl::PointXYZ>::Ptr verification_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
+	pcl::PointCloud<pcl::PointXYZ>::Ptr large_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
+	pcl::PointCloud<pcl::PointXYZ>::Ptr downsampled_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
+	for(int j = 0; j < aligned_transforms.size(); j++)
+	{	
+		pcl::io::loadPLYFile (paths[j], *orig_slam_cloud);
+		pcl::transformPointCloud (*orig_slam_cloud, *transformed_slam_cloud, aligned_transforms[j]);
+		*large_cloud += *transformed_slam_cloud;
+
+		if ((j > 0 && j % 30 == 0) || j == aligned_transforms.size()-1)
+		{
+			voxelGrid<PointXYZ>(large_cloud, downsampled_cloud, voxel_size, voxel_size, voxel_size);
+			*verification_cloud += *downsampled_cloud;
+			large_cloud->clear();
+		}
+	}
+
+
+	pcl::io::savePLYFile("verif.ply", *verification_cloud, true);
+
 
 	return 0;
 }
