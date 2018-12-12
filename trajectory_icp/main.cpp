@@ -38,6 +38,8 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr slice_cloud;
 pcl::PointCloud<pcl::PointXYZ>::Ptr slam_cloud;
 pcl::PointCloud<pcl::PointXYZ>::Ptr aligned_slam_cloud;
 pcl::PointCloud<pcl::PointXYZ>::Ptr aligned_traj_cloud;
+pcl::PointCloud<pcl::PointXYZ>::Ptr trajectory_cloud;
+
 mutex pointcloud_mutex;
 
 PointXYZ depth_map[SIZE_X][SIZE_Y];
@@ -74,29 +76,28 @@ void voxelGrid (
 }
 
 //----------------------------------------------------------
-void showViewer(
-		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud2 = 0)
+void showViewer()
 //----------------------------------------------------------
 {
 	viewer = boost::shared_ptr<pcl::visualization::PCLVisualizer>(new pcl::visualization::PCLVisualizer ("3D Viewer"));
 	viewer->setBackgroundColor (0, 0, 0);
-	//viewer->addPointCloud<PointXYZ> (slice_cloud, "Cloud 1");
-	//viewer->addPointCloud<PointXYZRGB> (trajectory_cloud, "Cloud 2");
-	viewer->addPointCloud<PointXYZ> (cloud, "Cloud 1");
-	if (cloud2 != 0) { viewer->addPointCloud<PointXYZRGB> (cloud2, "Cloud 2"); }
+	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> red_color(trajectory_cloud, 255, 0, 0);
 	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color(slam_cloud, 0, 255, 0);
-	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color2(slam_cloud, 0, 0, 255);
-	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color3(slam_cloud, 0, 255, 255);
+	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color2(aligned_slam_cloud, 0, 0, 255);
+	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color3(aligned_traj_cloud, 0, 255, 255);
+	//viewer->addPointCloud<PointXYZ> (slice_cloud, "Cloud 1");
+	viewer->addPointCloud<PointXYZ> (slice_cloud, "Cloud 1");
+	viewer->addPointCloud<PointXYZ> (trajectory_cloud, red_color, "Cloud 2");
 	viewer->addPointCloud<PointXYZ> (slam_cloud, single_color, "slam_cloud");
 	viewer->addPointCloud<PointXYZ> (aligned_slam_cloud, single_color2, "aligned_cloud");
 	viewer->addPointCloud<PointXYZ> (aligned_traj_cloud, single_color3, "aligned_traj_cloud");
-	viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "Cloud 1");
 	viewer->addCoordinateSystem (1.0);
 	viewer->initCameraParameters ();
 
+	double psize = 1;
 	while (!viewer->wasStopped ())
 	{
+		viewer->getPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, psize, "Cloud 1");
 		boost::this_thread::sleep (boost::posix_time::microseconds (100000));
 		lock_guard<mutex> guard(pointcloud_mutex);
 		//viewer->updatePointCloud(slice_cloud, "Cloud 1");
@@ -108,6 +109,11 @@ void showViewer(
 		viewer->addPointCloud<PointXYZ> (aligned_slam_cloud, single_color2, "aligned_cloud");
 		viewer->removePointCloud("aligned_traj_cloud");
 		viewer->addPointCloud<PointXYZ> (aligned_traj_cloud, single_color3, "aligned_traj_cloud");
+		viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, psize, "Cloud 1");
+		viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, psize, "Cloud 2");
+		viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, psize, "slam_cloud");
+		viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, psize, "aligned_cloud");
+		viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, psize, "aligned_traj_cloud");
 		viewer->spinOnce (100);
 	}
 }
@@ -117,7 +123,7 @@ void showViewer(
 void printUsage(const char* progName)
 //----------------------------------------------------------
 {
-	cout << "\n\nUsage: " << progName << " <Traj_File.txt> <tranform.txt> <pointclouds.txt> <pointclouds.pcd> [options] \n\n"
+	cout << "\n\nUsage: " << progName << " <Traj_File.txt> <tranform.txt> <pointclouds.txt> <lidar.pcd> [options] \n\n"
 		<< "Options:\n"
 		<< "-------------------------------------------\n"
 		<< "-h  --help                         This help\n"
@@ -147,10 +153,10 @@ int main (int argc, char** argv)
 
 	bool display = pcl::console::find_argument(argc, argv, "-d") >= 0;
 
-	string traj_filename = string(argv[txt_filenames[0]]);
-	string transform_filename = string(argv[txt_filenames[1]]);
-	string pc_filename   = string(argv[txt_filenames[2]]);
-	string pcd_filename   = string(argv[pcd_filenames[0]]);
+	string traj_filename = string(argv[txt_filenames[0]]); // SLAM trajectory (TUM format)
+	string transform_filename = string(argv[txt_filenames[1]]); // Global transformation matrix from SLAM point cloud to reference point cloud
+	string pc_filename   = string(argv[txt_filenames[2]]); // Filenames of processed SLAM sensor data
+	string pcd_filename   = string(argv[pcd_filenames[0]]); // Filename of reference point cloud (in PCD format)
 
 
 	// ---
@@ -210,16 +216,13 @@ int main (int argc, char** argv)
 
 
 
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr trajectory_cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
+	trajectory_cloud = pcl::PointCloud<pcl::PointXYZ>::Ptr(new pcl::PointCloud<pcl::PointXYZ> ());
 	for (auto& t : transforms)
 	{
-		PointXYZRGB p;
+		PointXYZ p;
 		p.x = t.translation()[0];
 		p.y = t.translation()[1];
 		p.z = t.translation()[2];
-		p.r = 255;
-		p.g = 0;
-		p.b = 0;
 		trajectory_cloud->push_back(p);
 	}
 
@@ -235,26 +238,36 @@ int main (int argc, char** argv)
 	aligned_slam_cloud = pcl::PointCloud<pcl::PointXYZ>::Ptr(new pcl::PointCloud<pcl::PointXYZ> ());
 	aligned_traj_cloud = pcl::PointCloud<pcl::PointXYZ>::Ptr(new pcl::PointCloud<pcl::PointXYZ> ());
 
+	// Parameters
 	float fx, fy, cx, cy;
 	fx = 525.0;
 	fy = 525.0;
 	cx = 319.5;
 	cy = 239.5;
-	// These have a factor of 5 IIRC
 	float max_dist = 3.0f;
+
+	// Parameters actually used
 	float margin_dist = 0.1f;
 	float voxel_size = 0.01f;
+	
+	// (TODO: change the factor of 5 thing with ORBSLAM)
 
 
+	// Start viewer thread
 	thread show_thread;
 	
 	if (display)
 	{
-		show_thread = thread(showViewer, slice_cloud, trajectory_cloud);
+		show_thread = thread(showViewer);
 	}
 
 
-	this_thread::sleep_for(chrono::seconds(1));
+	// -------
+	// Register each SLAM cloud with the reference model
+	// -------
+
+
+	//this_thread::sleep_for(chrono::seconds(1));
 
 	for(int j = 0; j < transforms.size(); j++)
 	{
@@ -262,19 +275,26 @@ int main (int argc, char** argv)
 
 		//this_thread::sleep_for(chrono::milliseconds(200));
 	
+		// The starting transform:
+		// We start with the SLAM transform
 		auto adjusted_transform = transforms[j];
 
+		// After the first iteration, we use the difference between SLAM transforms (tr[j-1].inv() * tr[j])
+		// and apply it to the previously registered pose.
 		if (j > 0)
 		{
 			adjusted_transform = aligned_transforms[j-1] * (transforms[j-1].inverse() * transforms[j]);
 		}
 
+		// Load SLAM sensor data, and apply the transform
 		pcl::io::loadPLYFile (paths[j], *orig_slam_cloud);
 		pcl::transformPointCloud (*orig_slam_cloud, *transformed_slam_cloud, adjusted_transform);
 		
+		// Find bounding box
 		PointXYZ slam_min, slam_max;
 		getMinMax3D(*transformed_slam_cloud, slam_min, slam_max);
 	
+		// Crop the reference cloud using the bounding box from SLAM data (plus margin)
 		pcl::CropBox<PointXYZ> cropFilter;
 		cropFilter.setInputCloud (source_cloud);
 		cropFilter.setMin(Eigen::Vector4f(slam_min.x-margin_dist, slam_min.y-margin_dist, slam_min.z-margin_dist, 1.0f) );
@@ -283,13 +303,11 @@ int main (int argc, char** argv)
 		cropFilter.filter (*lidar_slice_cloud);
 
 
-		//{
-		//	lock_guard<mutex> guard(pointcloud_mutex);
-   		//	cropFilter.filter (*slice_cloud);
-		//	copyPointCloud(*transformed_slam_cloud, *slam_cloud);
-		//}
-
-
+		//
+		// The piece of code below is a previous attempt at projecting the reference cloud into the camera frame
+		// using a depth map to limit the number of points.
+		// It works okay, but a bounding box is simpler and tends to crop a more relevant portion of the cloud.
+		//
 
 		//pcl::transformPointCloud(*source_cloud, *transformed_cloud, transforms[j].inverse());
 
@@ -334,7 +352,7 @@ int main (int argc, char** argv)
 
 	
 
-
+		// ICP from the SLAM cloud to the reference cloud
 		pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
 		icp.setInputSource(transformed_slam_cloud);
 		icp.setInputTarget(lidar_slice_cloud);
@@ -343,6 +361,7 @@ int main (int argc, char** argv)
 		
 		cout << "Converged: " << icp.hasConverged() << " Score: " << icp.getFitnessScore() << endl;
 
+		// Compute the registered transform
 		auto new_transform = Eigen::Affine3f(icp.getFinalTransformation()) * adjusted_transform;
 		PointXYZ p;
 		p.x = new_transform.translation()[0];
@@ -351,13 +370,14 @@ int main (int argc, char** argv)
 
 		aligned_transforms.push_back(new_transform);
 
+		// Display cropped reference cloud, SLAM cloud, aligned SLAM cloud, and aligned trajectory position
 		if (display)
 		{
 			lock_guard<mutex> guard(pointcloud_mutex);
 			copyPointCloud(final_cloud, *aligned_slam_cloud);
 			copyPointCloud(*transformed_slam_cloud, *slam_cloud);
 			copyPointCloud(*lidar_slice_cloud, *slice_cloud);
-			aligned_traj_cloud->push_back(p);
+			aligned_traj_cloud->push_back(p); // keep this inside of mutex
 		}
 		else
 		{
@@ -375,16 +395,19 @@ int main (int argc, char** argv)
 	}
 
 
+
+
 	// ---
 	// Save output
 	// ---
 
 	cout << "Saving output trajectories..." << endl;
 
-
+	// Save point cloud of x,y,z positions
 	pcl::io::savePLYFile("slam_traj.ply", *trajectory_cloud, true);
 	pcl::io::savePLYFile("gt_traj.ply", *aligned_traj_cloud, true);
 
+	// Save both slam and ground truth transforms in KITTI format
 	ofstream traj_out("gt_traj.txt");
 
 	for (auto& t :aligned_transforms)
@@ -392,11 +415,23 @@ int main (int argc, char** argv)
 		traj_out
 			<< t.matrix().row(0)[0] << " " << t.matrix().row(0)[1] << " " << t.matrix().row(0)[2] << " " << t.matrix().row(0)[3] << " "
 			<< t.matrix().row(1)[0] << " " << t.matrix().row(1)[1] << " " << t.matrix().row(1)[2] << " " << t.matrix().row(1)[3] << " "
-			<< t.matrix().row(2)[0] << " " << t.matrix().row(2)[1] << " " << t.matrix().row(2)[2] << " " << t.matrix().row(2)[3] << " "
+			<< t.matrix().row(2)[0] << " " << t.matrix().row(2)[1] << " " << t.matrix().row(2)[2] << " " << t.matrix().row(2)[3]
+			<< "\n";
+	}
+	
+	ofstream slam_traj_out("slam_traj.txt");
+
+	for (auto& t :transforms)
+	{
+		slam_traj_out
+			<< t.matrix().row(0)[0] << " " << t.matrix().row(0)[1] << " " << t.matrix().row(0)[2] << " " << t.matrix().row(0)[3] << " "
+			<< t.matrix().row(1)[0] << " " << t.matrix().row(1)[1] << " " << t.matrix().row(1)[2] << " " << t.matrix().row(1)[3] << " "
+			<< t.matrix().row(2)[0] << " " << t.matrix().row(2)[1] << " " << t.matrix().row(2)[2] << " " << t.matrix().row(2)[3]
 			<< "\n";
 	}
 
 
+	// Merge the SLAM sensor data using aligned transforms
 	cout << "Computing verification cloud" << endl;
 
 	pcl::PointCloud<pcl::PointXYZ>::Ptr verification_cloud (new pcl::PointCloud<pcl::PointXYZ> ());

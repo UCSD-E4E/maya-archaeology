@@ -197,23 +197,6 @@ if __name__ == '__main__':
     generate_all_pointclouds(args.trajectory_file, args.bag_file, args.topic, list(map(float, args.intrinsics)), temp_dir, args.filter, args.num_threads)
 
 
-    ## Transform and concatenate all point clouds
-    #subprocess.call(" ".join([os.path.join('build', 'transform_concat'), args.trajectory_file, os.path.join(temp_dir, 'pointclouds.txt'), '-n' if args.normals else '']), shell=True)
+    #subprocess.call(" ", shell=True)
 
-
-    ## Downsample the resulting point cloud
-    #subprocess.call(" ".join([os.path.join('build', 'downsample'), "orbslam_cloud.ply", 'orbslam_cloud_downsampled.ply']), shell=True)
-
-
-    ## Colorize the downsampled point cloud
-    #subprocess.call(" ".join([os.path.join('build', 'colorize'), "orbslam_cloud_downsampled.ply", 'orbslam_cloud_colored.ply']), shell=True)
-
-
-    ## Copy the results to the results directory
-    #output_filename1 = os.path.join(result_dir, "orbslam_cloud.ply")
-    #output_filename2 = os.path.join(result_dir, "orbslam_cloud_downsampled.ply")
-    #output_filename3 = os.path.join(result_dir, "orbslam_cloud_colored.ply")
-    #move("orbslam_cloud.ply",             output_filename1)
-    #move("orbslam_cloud_downsampled.ply", output_filename2)
-    #move("orbslam_cloud_colored.ply",     output_filename3)
 
