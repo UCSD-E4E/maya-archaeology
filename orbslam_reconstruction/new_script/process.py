@@ -12,6 +12,7 @@ import multiprocessing as mp
 from multiprocessing import Pool
 import subprocess
 import shutil
+import glob
 
 
 #-------------------------------------------------------
@@ -83,8 +84,9 @@ def get_images(bag_file, timestamps, bag_topic):
 
 
 #-------------------------------------------------------
-def generate_pointcloud((depth, ply_file, intrinsics, apply_filter)):
+def generate_pointcloud(args):
 #-------------------------------------------------------
+    (depth, ply_file, intrinsics, apply_filter) = args
 
     fx, fy, cx, cy, scalingFactor = intrinsics
 
@@ -185,6 +187,7 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--topic', default='/camera/depth_registered/image_raw', help='Bag file topic')
     parser.add_argument('-i', '--intrinsics', metavar=('fx', 'fy', 'cx', 'cy', 'scale'), default=[525.0, 525.0, 319.5, 239.5, 5000.0], nargs=5, help='Camera intrinsics [fx fy cx cy scale] (default: %(default)s)')
     parser.add_argument('-n', '--normals', help='Compute normals on the original model (uses a lot of extra memory)', action='store_true')
+    parser.add_argument('-s', '--scale', type=float, default=5.0, help='Apply a scale to the trajectory transforms')
     parser.add_argument('-f', '--filter', help='Apply a filter on depth images (optimized for ZR300)', action='store_true')
     args = parser.parse_args()
 
@@ -198,11 +201,15 @@ if __name__ == '__main__':
 
 
     # Transform and concatenate all point clouds
-    subprocess.call(" ".join([os.path.join('build', 'transform_concat'), args.trajectory_file, os.path.join(temp_dir, 'pointclouds.txt'), '-n' if args.normals else '']), shell=True)
+    subprocess.call(" ".join([os.path.join('build', 'transform_concat'),
+        args.trajectory_file,
+        os.path.join(temp_dir, 'pointclouds.txt'),
+        '-n' if args.normals else '',
+        '-s ' + str(args.scale)]), shell=True)
 
 
     # Downsample the resulting point cloud
-    subprocess.call(" ".join([os.path.join('build', 'downsample'), "orbslam_cloud.ply", 'orbslam_cloud_downsampled.ply']), shell=True)
+    #subprocess.call(" ".join([os.path.join('build', 'downsample'), "orbslam_cloud.ply", 'orbslam_cloud_downsampled.ply']), shell=True)
 
 
     # Colorize the downsampled point cloud
@@ -210,10 +217,13 @@ if __name__ == '__main__':
 
 
     # Copy the results to the results directory
-    output_filename1 = os.path.join(result_dir, "orbslam_cloud.ply")
-    output_filename2 = os.path.join(result_dir, "orbslam_cloud_downsampled.ply")
-    output_filename3 = os.path.join(result_dir, "orbslam_cloud_colored.ply")
-    move("orbslam_cloud.ply",             output_filename1)
-    move("orbslam_cloud_downsampled.ply", output_filename2)
-    move("orbslam_cloud_colored.ply",     output_filename3)
+    for f in glob.glob("orbslam_cloud*.ply") + ["orbslam_traj.txt"]:
+        move(f, os.path.join(result_dir, f))
+
+    #output_filename1 = os.path.join(result_dir, "orbslam_cloud.ply")
+    #output_filename2 = os.path.join(result_dir, "orbslam_cloud_downsampled.ply")
+    #output_filename3 = os.path.join(result_dir, "orbslam_cloud_colored.ply")
+    #move("orbslam_cloud.ply",             output_filename1)
+    #move("orbslam_cloud_downsampled.ply", output_filename2)
+    #move("orbslam_cloud_colored.ply",     output_filename3)
 
