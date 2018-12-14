@@ -120,10 +120,65 @@ void showViewer()
 
 
 //----------------------------------------------------------
+void readTUMTrajectory(string& path, vector<Eigen::Affine3f>& transforms, Eigen::Affine3f& global_transform)
+//----------------------------------------------------------
+{
+	ifstream traj_file(path);
+	
+	string traj_str;
+
+	while(traj_file >> traj_str)
+	{
+		float tx, ty, tz, qw, qx, qy, qz;
+		traj_file >> tx >> ty >> tz >> qx >> qy >> qz >> qw;
+
+		Eigen::Affine3f transform = Eigen::Affine3f::Identity();
+		transform.translation() << tx, ty, tz;
+
+		Eigen::Matrix3f mat3 = Eigen::Quaternionf(qw, qx, qy, qz).toRotationMatrix();
+		transform.rotate (mat3);
+
+		transform = global_transform * transform;
+
+		transforms.push_back(transform);
+	}
+}
+
+
+//----------------------------------------------------------
+void readKittiTrajectory(string& path, vector<Eigen::Affine3f>& transforms, Eigen::Affine3f& global_transform)
+//----------------------------------------------------------
+{
+	ifstream traj_file(path);
+
+	float values[12];
+
+	while(traj_file >> values[0])
+	{
+		for (int i = 1; i < 12; i++)
+		{
+			traj_file >> values[i];
+		}
+
+		Eigen::Affine3f transform = Eigen::Affine3f::Identity();
+		transform.matrix() << 
+			values[0], values[1], values[2], values[3],
+			values[4], values[5], values[6], values[7],
+			values[8], values[9], values[10], values[11],
+			0, 0, 0, 1;
+
+		transform = global_transform * transform;
+
+		transforms.push_back(transform);
+	}
+}
+
+
+//----------------------------------------------------------
 void printUsage(const char* progName)
 //----------------------------------------------------------
 {
-	cout << "\n\nUsage: " << progName << " <Traj_File.txt> <tranform.txt> <pointclouds.txt> <lidar.pcd> [options] \n\n"
+	cout << "\n\nUsage: " << progName << " <Traj_File.txt> <tranform.txt> <pointclouds.txt> <lidar.ply> [options] \n\n"
 		<< "Options:\n"
 		<< "-------------------------------------------\n"
 		<< "-h  --help                         This help\n"
@@ -143,9 +198,9 @@ int main (int argc, char** argv)
 	}
 
 	vector<int> txt_filenames = pcl::console::parse_file_extension_argument(argc, argv, "txt");
-	vector<int> pcd_filenames = pcl::console::parse_file_extension_argument(argc, argv, "pcd");
+	vector<int> ply_filenames = pcl::console::parse_file_extension_argument(argc, argv, "ply");
 
-	if(txt_filenames.size() < 3 || pcd_filenames.size() < 1)
+	if(txt_filenames.size() < 3 || ply_filenames.size() < 1)
 	{
 		printUsage(argv[0]);
 		return EXIT_FAILURE;
@@ -153,17 +208,16 @@ int main (int argc, char** argv)
 
 	bool display = pcl::console::find_argument(argc, argv, "-d") >= 0;
 
-	string traj_filename = string(argv[txt_filenames[0]]); // SLAM trajectory (TUM format)
+	string traj_filename = string(argv[txt_filenames[0]]); // SLAM trajectory (KITTI format)
 	string transform_filename = string(argv[txt_filenames[1]]); // Global transformation matrix from SLAM point cloud to reference point cloud
 	string pc_filename   = string(argv[txt_filenames[2]]); // Filenames of processed SLAM sensor data
-	string pcd_filename   = string(argv[pcd_filenames[0]]); // Filename of reference point cloud (in PCD format)
+	string ply_filename   = string(argv[ply_filenames[0]]); // Filename of reference point cloud (in PLY format)
 
 
 	// ---
 	// Read input files
 	// ---
 
-	ifstream traj_file(traj_filename);
 	ifstream trans_file(transform_filename);
 	ifstream pc_file(pc_filename);
 
@@ -172,47 +226,29 @@ int main (int argc, char** argv)
 	for (int i = 0; i < 16; i++)
 	{
 		trans_file >> value;
-		cout << value << " ";
 		global_transform(i/4,i%4) = value;
 	}
-	cout << endl;
-
-	cout << global_transform.matrix() << endl;
 
 
 
-	string traj_str;
 	string pc_str;
 
 	vector<string> paths;
 	vector<Eigen::Affine3f> transforms;
-	vector<Eigen::Affine3f> aligned_transforms;
+	vector<Eigen::Affine3f> registered_transforms;
 
 	while(pc_file >> pc_str)
 	{
 		paths.push_back(pc_str);
 	}
 
-	while(traj_file >> traj_str)
-	{
-		float tx, ty, tz, qw, qx, qy, qz;
-		traj_file >> tx >> ty >> tz >> qx >> qy >> qz >> qw;
-
-		Eigen::Affine3f transform = Eigen::Affine3f::Identity();
-		transform.translation() << tx, ty, tz;
-
-		Eigen::Matrix3f mat3 = Eigen::Quaternionf(qw, qx, qy, qz).toRotationMatrix();
-		transform.rotate (mat3);
-
-		transform = global_transform * transform;
-
-		transforms.push_back(transform);
-	}
+	//readTUMTrajectory(traj_filename, transforms, global_transform);
+	readKittiTrajectory(traj_filename, transforms, global_transform);
 
 
 
 	pcl::PointCloud<pcl::PointXYZ>::Ptr source_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
-	pcl::io::loadPCDFile<pcl::PointXYZ> (pcd_filename, *source_cloud);
+	pcl::io::loadPLYFile<pcl::PointXYZ> (ply_filename, *source_cloud);
 
 
 
@@ -283,7 +319,7 @@ int main (int argc, char** argv)
 		// and apply it to the previously registered pose.
 		if (j > 0)
 		{
-			adjusted_transform = aligned_transforms[j-1] * (transforms[j-1].inverse() * transforms[j]);
+			adjusted_transform = registered_transforms[j-1] * (transforms[j-1].inverse() * transforms[j]);
 		}
 
 		// Load SLAM sensor data, and apply the transform
@@ -368,7 +404,7 @@ int main (int argc, char** argv)
 		p.y = new_transform.translation()[1];
 		p.z = new_transform.translation()[2];
 
-		aligned_transforms.push_back(new_transform);
+		registered_transforms.push_back(new_transform);
 
 		// Display cropped reference cloud, SLAM cloud, aligned SLAM cloud, and aligned trajectory position
 		if (display)
@@ -395,6 +431,14 @@ int main (int argc, char** argv)
 	}
 
 
+	// Align SLAM transforms to the first registered transform
+	vector<Eigen::Affine3f> transforms_aligned_to_registered;
+	for (int i = 0; i < transforms.size(); i++)
+	{
+		Eigen::Affine3f tf = transforms[i] * (transforms[0].inverse() * registered_transforms[0]);
+		transforms_aligned_to_registered.push_back(tf);
+	}
+
 
 
 	// ---
@@ -410,7 +454,7 @@ int main (int argc, char** argv)
 	// Save both slam and ground truth transforms in KITTI format
 	ofstream traj_out("gt_traj.txt");
 
-	for (auto& t :aligned_transforms)
+	for (auto& t :registered_transforms)
 	{
 		traj_out
 			<< t.matrix().row(0)[0] << " " << t.matrix().row(0)[1] << " " << t.matrix().row(0)[2] << " " << t.matrix().row(0)[3] << " "
@@ -419,7 +463,7 @@ int main (int argc, char** argv)
 			<< "\n";
 	}
 	
-	ofstream slam_traj_out("slam_traj.txt");
+	ofstream slam_traj_out("slam_traj_not_aligned.txt");
 
 	for (auto& t :transforms)
 	{
@@ -429,6 +473,18 @@ int main (int argc, char** argv)
 			<< t.matrix().row(2)[0] << " " << t.matrix().row(2)[1] << " " << t.matrix().row(2)[2] << " " << t.matrix().row(2)[3]
 			<< "\n";
 	}
+	
+	ofstream slam_traj_out2("slam_traj.txt");
+
+	for (auto& t :transforms_aligned_to_registered)
+	{
+		slam_traj_out2
+			<< t.matrix().row(0)[0] << " " << t.matrix().row(0)[1] << " " << t.matrix().row(0)[2] << " " << t.matrix().row(0)[3] << " "
+			<< t.matrix().row(1)[0] << " " << t.matrix().row(1)[1] << " " << t.matrix().row(1)[2] << " " << t.matrix().row(1)[3] << " "
+			<< t.matrix().row(2)[0] << " " << t.matrix().row(2)[1] << " " << t.matrix().row(2)[2] << " " << t.matrix().row(2)[3]
+			<< "\n";
+	}
+
 
 
 	// Merge the SLAM sensor data using aligned transforms
@@ -437,13 +493,13 @@ int main (int argc, char** argv)
 	pcl::PointCloud<pcl::PointXYZ>::Ptr verification_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
 	pcl::PointCloud<pcl::PointXYZ>::Ptr large_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
 	pcl::PointCloud<pcl::PointXYZ>::Ptr downsampled_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
-	for(int j = 0; j < aligned_transforms.size(); j++)
+	for(int j = 0; j < registered_transforms.size(); j++)
 	{	
 		pcl::io::loadPLYFile (paths[j], *orig_slam_cloud);
-		pcl::transformPointCloud (*orig_slam_cloud, *transformed_slam_cloud, aligned_transforms[j]);
+		pcl::transformPointCloud (*orig_slam_cloud, *transformed_slam_cloud, registered_transforms[j]);
 		*large_cloud += *transformed_slam_cloud;
 
-		if ((j > 0 && j % 30 == 0) || j == aligned_transforms.size()-1)
+		if ((j > 0 && j % 30 == 0) || j == registered_transforms.size()-1)
 		{
 			voxelGrid<PointXYZ>(large_cloud, downsampled_cloud, voxel_size, voxel_size, voxel_size);
 			*verification_cloud += *downsampled_cloud;
