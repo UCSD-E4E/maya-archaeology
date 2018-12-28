@@ -11,6 +11,7 @@
 #include <pcl/octree/octree.h>
 #include <pcl/registration/icp.h>
 #include <pcl/common/common.h>
+#include <pcl/common/time.h>
 #include <pcl/filters/crop_box.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/conditional_removal.h>
@@ -21,6 +22,8 @@
 #include <chrono>
 #include <thread>
 #include <mutex>
+
+//#include <pcl/registration/super4pcs.h>
 
 #include <Eigen/StdVector>
 
@@ -209,12 +212,18 @@ void printUsage(const char* progName)
 		<< "Options:\n"
 		<< "-------------------------------------------\n"
 		<< "-h  --help                         This help\n"
+		<< "-d                                 Display the point clouds\n"
+		<< "-tum                               Trajectory is in TUM format instead of KITTI\n"
 		<< "\n\n";
 }
 
 
 //----------------------------------------------------------
-void saveTrajectories(vector<Eigen::Affine3f>& transforms, vector<Eigen::Affine3f>& registered_transforms, vector<Eigen::Affine3f>& transforms_aligned_to_registered)
+void saveTrajectories(
+		vector<Eigen::Affine3f>& transforms,
+		vector<Eigen::Affine3f>& registered_transforms,
+		vector<Eigen::Affine3f>& transforms_aligned_to_registered,
+		vector<double>& icp_scores)
 //----------------------------------------------------------
 {
 	ofstream traj_out("gt_traj.txt");
@@ -249,6 +258,58 @@ void saveTrajectories(vector<Eigen::Affine3f>& transforms, vector<Eigen::Affine3
 			<< t.matrix().row(2)[0] << " " << t.matrix().row(2)[1] << " " << t.matrix().row(2)[2] << " " << t.matrix().row(2)[3]
 			<< "\n";
 	}
+
+	ofstream score_out("scores.txt");
+	for (auto& s: icp_scores)
+	{
+		score_out << s << "\n";
+	}
+}
+
+
+//----------------------------------------------------------
+void readTrajectories(
+		vector<Eigen::Affine3f>& transforms,
+		vector<Eigen::Affine3f>& registered_transforms,
+		vector<Eigen::Affine3f>& transforms_aligned_to_registered,
+		vector<double>& icp_scores)
+//----------------------------------------------------------
+{
+	ifstream traj_in("gt_traj.txt");
+
+	for (auto& t :registered_transforms)
+	{
+		traj_in
+			>> t.matrix().row(0)[0] >> t.matrix().row(0)[1] >> t.matrix().row(0)[2] >> t.matrix().row(0)[3]
+			>> t.matrix().row(1)[0] >> t.matrix().row(1)[1] >> t.matrix().row(1)[2] >> t.matrix().row(1)[3]
+			>> t.matrix().row(2)[0] >> t.matrix().row(2)[1] >> t.matrix().row(2)[2] >> t.matrix().row(2)[3];
+	}
+	
+	ifstream slam_traj_in("slam_traj_not_aligned.txt");
+
+	for (auto& t :transforms)
+	{
+		slam_traj_in
+			>> t.matrix().row(0)[0] >> t.matrix().row(0)[1] >> t.matrix().row(0)[2] >> t.matrix().row(0)[3]
+			>> t.matrix().row(1)[0] >> t.matrix().row(1)[1] >> t.matrix().row(1)[2] >> t.matrix().row(1)[3]
+			>> t.matrix().row(2)[0] >> t.matrix().row(2)[1] >> t.matrix().row(2)[2] >> t.matrix().row(2)[3];
+	}
+	
+	ifstream slam_traj_in2("slam_traj.txt");
+
+	for (auto& t :transforms_aligned_to_registered)
+	{
+		slam_traj_in2
+			>> t.matrix().row(0)[0] >> t.matrix().row(0)[1] >> t.matrix().row(0)[2] >> t.matrix().row(0)[3]
+			>> t.matrix().row(1)[0] >> t.matrix().row(1)[1] >> t.matrix().row(1)[2] >> t.matrix().row(1)[3]
+			>> t.matrix().row(2)[0] >> t.matrix().row(2)[1] >> t.matrix().row(2)[2] >> t.matrix().row(2)[3];
+	}
+
+	ifstream score_in("scores.txt");
+	for (auto& s: icp_scores)
+	{
+		score_in >> s;
+	}
 }
 
 
@@ -280,6 +341,11 @@ int main (int argc, char** argv)
 	string pc_filename   = string(argv[txt_filenames[2]]); // Filenames of processed SLAM sensor data
 	string ply_filename   = string(argv[ply_filenames[0]]); // Filename of reference point cloud (in PLY format)
 
+	int start_j = 0;
+	pcl::console::parse_argument(argc, argv, "-read", start_j);
+
+
+	StopWatch timer;
 
 	// ---
 	// Read input files
@@ -349,7 +415,7 @@ int main (int argc, char** argv)
 	float max_dist = 3.0f;
 
 	// Parameters actually used
-	float margin_dist = 0.1f;
+	float margin_dist = 0.5f;
 	float voxel_size = 0.01f;
 	
 
@@ -372,10 +438,20 @@ int main (int argc, char** argv)
 
 	vector<Eigen::Affine3f> registered_transforms(transforms.size());
 	vector<Eigen::Affine3f> transforms_aligned_to_registered(transforms.size());
+	vector<double> icp_scores(transforms.size());
+
+	if (start_j > 0)
+	{
+		readTrajectories(transforms, registered_transforms, transforms_aligned_to_registered, icp_scores);
+	}
+
+	cout << "Initialization took " << timer.getTimeSeconds() << " s" << endl;
 
 	//this_thread::sleep_for(chrono::seconds(1));
+	
+	double slam_time, lidar_time, icp_time, display_time;
 
-	for(int j = 0; j < transforms.size(); j+=num_parallel)
+	for(int j = start_j; j < transforms.size(); j+=num_parallel)
 	{
 		cout << j+1 << " / " << transforms.size() << endl;
 
@@ -404,12 +480,14 @@ int main (int argc, char** argv)
 				{
 					// After the first iteration, we use the difference between SLAM transforms (tr[j-1].inv() * tr[j])
 					// and apply it to the previously registered pose.
-					//adjusted_transform = registered_transforms[j-1] * (transforms[j-1].inverse() * transforms[j+k]);
+					adjusted_transform = registered_transforms[j-1] * (transforms[j-1].inverse() * transforms[j+k]);
 
 					// Or we simply use the last registered pose if we don't trust the SLAM trajectory at all
-					adjusted_transform = registered_transforms[j-1];
+					//adjusted_transform = registered_transforms[j-1];
 				}
 				
+				timer.reset();
+
 				// Load SLAM sensor data, and apply the transform
 				pcl::io::loadPLYFile (paths[j+k], *orig_slam_cloud);
 
@@ -424,6 +502,9 @@ int main (int argc, char** argv)
 				computeNormals<PointXYZ, Normal>(transformed_slam_cloud, slam_normals);
 				concatenateFields(*transformed_slam_cloud, *slam_normals, *slam_cloud_normals);
 				
+				slam_time = timer.getTimeSeconds();
+				timer.reset();
+
 				// Find bounding box
 				PointXYZ slam_min, slam_max;
 				getMinMax3D(*transformed_slam_cloud, slam_min, slam_max);
@@ -436,6 +517,8 @@ int main (int argc, char** argv)
    				
 				cropFilter.filter (*lidar_slice_cloud);
 
+				lidar_time = timer.getTimeSeconds();
+				timer.reset();
 				
 				
 				//
@@ -474,7 +557,7 @@ int main (int argc, char** argv)
 				//	{
 				//		for (int y = 0; y < SIZE_Y; y++)
 				//		{
-				//			int idx = depth_map_idx[x][y];
+				//		align.align (*object_aligned);	int idx = depth_map_idx[x][y];
 				//			if (idx >= 0)
 				//			{
 				//				slice_cloud->push_back((*source_cloud)[idx]);
@@ -485,19 +568,32 @@ int main (int argc, char** argv)
 				//	pcl::transformPointCloud (*orig_slam_cloud, *slam_cloud, transforms[j]);
 				//}
 
-	
+				
+				// Using super4pcs for *global* registration (aka rough registration)
+				//pcl::Super4PCS<PointNormal, PointNormal> global_reg;
+				//global_reg.options_.configureOverlap(0.9);
+				//global_reg.options_.sample_size = 1000;
+				//global_reg.options_.delta = 5.0;
+				//global_reg.setInputSource(slam_cloud_normals);
+				//global_reg.setInputTarget(lidar_slice_cloud);
+				//global_reg.align(final_cloud);
+				//cout << "Guess:\n" << global_reg.getFinalTransformation() << endl;
 
 				// ICP from the SLAM cloud to the reference cloud
 				//pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
 				pcl::IterativeClosestPointWithNormals<pcl::PointNormal, pcl::PointNormal> icp;
 				icp.setInputSource(slam_cloud_normals);
 				icp.setInputTarget(lidar_slice_cloud);
-				icp.setMaximumIterations (50);
-				icp.setTransformationEpsilon (1e-8);
+				icp.setMaximumIterations (25);
+				icp.setTransformationEpsilon (1e-9);
+				icp.setMaxCorrespondenceDistance (0.05);
+				icp.setEuclideanFitnessEpsilon (1);
+				icp.setRANSACOutlierRejectionThreshold (1.5);
 				
-				icp.align(final_cloud);
+				icp.align(final_cloud); //, global_reg.getFinalTransformation());
 				
 				cout << "Converged: " << icp.hasConverged() << " Score: " << icp.getFitnessScore() << endl;
+
 
 				// Compute the registered transform
 				auto new_transform = Eigen::Affine3f(icp.getFinalTransformation()) * adjusted_transform;
@@ -511,6 +607,11 @@ int main (int argc, char** argv)
 				
 				Eigen::Affine3f tf = transforms[j+k] * (transforms[0].inverse() * registered_transforms[0]);
 				transforms_aligned_to_registered[j+k] = tf;
+
+				icp_scores[j+k] = icp.getFitnessScore();
+
+				icp_time = timer.getTimeSeconds();
+				timer.reset();
 
 
 				// Display cropped reference cloud, SLAM cloud, aligned SLAM cloud, and aligned trajectory position
@@ -527,25 +628,25 @@ int main (int argc, char** argv)
 					(*aligned_traj_cloud)[j+k] = p;
 				}
 
+				display_time = timer.getTimeSeconds();
 
 			}
 		} // parallel
 
+
+		cout << "Process SLAM: " << slam_time << " s | "
+			<< "Process reference cloud: " << lidar_time << " s | "
+			<< "ICP: " << icp_time << " s | "
+			<< "Display: " << display_time << " s " << endl;
+
+
+		// temp save
 		if (save_temp < 0)
 		{
-			saveTrajectories(transforms, registered_transforms, transforms_aligned_to_registered);
+			saveTrajectories(transforms, registered_transforms, transforms_aligned_to_registered, icp_scores);
 			save_temp = 10;
 		}
 		save_temp--; // todo
-	}
-
-
-
-
-
-	if (display)
-	{
-		show_thread.join();
 	}
 
 
@@ -561,16 +662,16 @@ int main (int argc, char** argv)
 	pcl::io::savePLYFile("gt_traj.ply", *aligned_traj_cloud, true);
 
 	// Save both slam and ground truth transforms in KITTI format
-	saveTrajectories(transforms, registered_transforms, transforms_aligned_to_registered);
+	saveTrajectories(transforms, registered_transforms, transforms_aligned_to_registered, icp_scores);
 
 
 
 	// Merge the SLAM sensor data using aligned transforms
 	cout << "Computing verification cloud" << endl;
 
+	pcl::PointCloud<pcl::PointXYZ>::Ptr verification_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
 	pcl::PointCloud<pcl::PointXYZ>::Ptr orig_slam_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
 	pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_slam_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
-	pcl::PointCloud<pcl::PointXYZ>::Ptr verification_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
 	pcl::PointCloud<pcl::PointXYZ>::Ptr large_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
 	pcl::PointCloud<pcl::PointXYZ>::Ptr downsampled_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
 	for(int j = 0; j < registered_transforms.size(); j++)
@@ -579,7 +680,7 @@ int main (int argc, char** argv)
 		pcl::transformPointCloud (*orig_slam_cloud, *transformed_slam_cloud, registered_transforms[j]);
 		*large_cloud += *transformed_slam_cloud;
 
-		if ((j > 0 && j % 30 == 0) || j == registered_transforms.size()-1)
+		if ((j > 0 && j % 50 == 0) || j == registered_transforms.size()-1)
 		{
 			voxelGrid<PointXYZ>(large_cloud, downsampled_cloud, voxel_size, voxel_size, voxel_size);
 			*verification_cloud += *downsampled_cloud;
@@ -589,6 +690,15 @@ int main (int argc, char** argv)
 
 
 	pcl::io::savePLYFile("verif.ply", *verification_cloud, true);
+
+
+
+
+	if (display)
+	{
+		show_thread.join();
+	}
+
 
 
 	return 0;
