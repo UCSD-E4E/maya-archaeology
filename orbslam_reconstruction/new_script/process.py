@@ -13,6 +13,7 @@ from multiprocessing import Pool
 import subprocess
 import shutil
 import glob
+import struct
 
 
 #-------------------------------------------------------
@@ -109,16 +110,18 @@ def generate_pointcloud(args):
 
     f = open(ply_file, "w")
     f.write('''ply
-format ascii 1.0
+format binary_little_endian 1.0
 element vertex %d
 property float x
 property float y
 property float z
 end_header
 '''%(Z.size))
+    #format ascii 1.0
     
     for x,y,z in zip(X.flatten(), Y.flatten(), Z.flatten()):
-        f.write("%f %f %f\n"%(x,y,z))
+        #f.write("%f %f %f\n"%(x,y,z))
+        f.write(struct.pack('fff', x,y,z))
 
 
     #points = []    
@@ -159,6 +162,7 @@ def generate_all_pointclouds(traj_file, bag_file, bag_topic, intrinsics, temp_di
     data = [(depth, os.path.join(temp_dir, 'pointcloud_{0:.6f}.ply'.format(timestamp)), intrinsics, apply_filter) for timestamp,depth in images]
     pool = Pool(n_threads)
     pool.map_async(generate_pointcloud, data).get(999999999) # map_async is used to catch interrupts
+    pool.terminate() # Kill those processes!! I want my memory back!
 
     f = open(os.path.join(temp_dir, 'pointclouds.txt'), 'wt')
     f.write('\n'.join(map(os.path.abspath, zip(*data)[1])))

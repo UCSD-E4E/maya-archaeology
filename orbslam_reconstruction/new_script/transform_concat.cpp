@@ -162,28 +162,28 @@ int main (int argc, char** argv)
 	int progress = 0;
 	int j = 0;
 	int num_of_clouds = 400;
-	int num_of_outer_loops = paths.size() / num_of_clouds;
-	if (paths.size()%num_of_clouds == 0)
+	int num_of_outer_loops = paths.size() / num_of_clouds + 1;
+	if (paths.size() % num_of_clouds == 0)
 	{
 		num_of_outer_loops--;
 	}
 
 
 	pcl::PointCloud<pcl::PointNormal>::Ptr downsampled_cloud (new pcl::PointCloud<pcl::PointNormal>);
-	pcl::PointCloud<pcl::PointXYZ>::Ptr downsampled_temp (new pcl::PointCloud<pcl::PointXYZ>);
 	pcl::PointCloud<pcl::Normal>::Ptr downsampled_normals (new pcl::PointCloud<pcl::Normal>);
-	pcl::PointCloud<pcl::PointNormal>::Ptr downsampled_with_normals (new pcl::PointCloud<pcl::PointNormal>);
 
 
 
-	while (j <= num_of_outer_loops)
+	while (j < num_of_outer_loops)
 	{
-		int loop_size = (j+1)*num_of_clouds;
+		int stop_idx = (j+1)*num_of_clouds;
 
-		if (paths.size() <= loop_size)
+		if (paths.size() < stop_idx)
 		{
-			loop_size = paths.size();
+			stop_idx = paths.size();
 		}
+
+		cout << "--> " << stop_idx << endl;
 
 		pcl::PointCloud<pcl::PointXYZ>::Ptr result_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
 
@@ -194,7 +194,7 @@ int main (int argc, char** argv)
 			pcl::PointCloud<pcl::PointXYZ>::Ptr temp_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
 
 #pragma omp for
-			for (size_t i = j*num_of_clouds; i < loop_size; i++)
+			for (size_t i = j*num_of_clouds; i < stop_idx; i++)
 			{
 				pcl::io::loadPLYFile (paths[i], *source_cloud);
 
@@ -210,7 +210,7 @@ int main (int argc, char** argv)
 					//viewer.addPointCloud (transformed_cloud, line_2);
 
 					progress++;
-					cout << "\33[2K\r" << 100*progress/(float)paths.size() << " %" << flush;
+					cout << "\33[2K\r" << 100*progress/(float)paths.size() << " %  (" << progress << "/" << paths.size() << ")" << flush;
 				}
 			}
 		}
@@ -238,11 +238,17 @@ int main (int argc, char** argv)
 		// ---
 		// Downsample and compute normals on downsampled cloud
 		// ---
-		voxelGrid<pcl::PointXYZ>(result_cloud, downsampled_temp, voxel_size, voxel_size, voxel_size);
-		computeNormals<pcl::PointXYZ>(downsampled_temp, downsampled_normals, 10);
-		pcl::concatenateFields(*downsampled_temp, *downsampled_normals, *downsampled_with_normals);
+		{
+			pcl::PointCloud<pcl::PointXYZ>::Ptr downsampled_temp (new pcl::PointCloud<pcl::PointXYZ>);
+			pcl::PointCloud<pcl::PointNormal>::Ptr downsampled_with_normals (new pcl::PointCloud<pcl::PointNormal>);
+			
+			voxelGrid<pcl::PointXYZ>(result_cloud, downsampled_temp, voxel_size, voxel_size, voxel_size);
+			computeNormals<pcl::PointXYZ>(downsampled_temp, downsampled_normals, 10);
+			pcl::concatenateFields(*downsampled_temp, *downsampled_normals, *downsampled_with_normals);
+			
+			*downsampled_cloud += *downsampled_with_normals;
+		}
 
-		*downsampled_cloud += *downsampled_with_normals;
 
 
 
