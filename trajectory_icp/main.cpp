@@ -285,16 +285,6 @@ void readTrajectories(
 			>> t.matrix().row(2)[0] >> t.matrix().row(2)[1] >> t.matrix().row(2)[2] >> t.matrix().row(2)[3];
 	}
 	
-	ifstream slam_traj_in("slam_traj_not_aligned.txt");
-
-	for (auto& t :transforms)
-	{
-		slam_traj_in
-			>> t.matrix().row(0)[0] >> t.matrix().row(0)[1] >> t.matrix().row(0)[2] >> t.matrix().row(0)[3]
-			>> t.matrix().row(1)[0] >> t.matrix().row(1)[1] >> t.matrix().row(1)[2] >> t.matrix().row(1)[3]
-			>> t.matrix().row(2)[0] >> t.matrix().row(2)[1] >> t.matrix().row(2)[2] >> t.matrix().row(2)[3];
-	}
-	
 	ifstream slam_traj_in2("slam_traj.txt");
 
 	for (auto& t :transforms_aligned_to_registered)
@@ -344,6 +334,10 @@ int main (int argc, char** argv)
 	int start_j = 0;
 	pcl::console::parse_argument(argc, argv, "-read", start_j);
 
+	int skip_from = 999999999;
+	int skip_to   = 0;
+	pcl::console::parse_argument(argc, argv, "-skip-from", skip_from);
+	pcl::console::parse_argument(argc, argv, "-skip-to", skip_to);
 
 	StopWatch timer;
 
@@ -432,7 +426,7 @@ int main (int argc, char** argv)
 	// Register each SLAM cloud with the reference model
 	// -------
 
-	int num_parallel = 1;
+	int num_parallel = 1; // warning: results might not be as good with parallel computation
 	int save_temp = 10;
 
 
@@ -443,6 +437,16 @@ int main (int argc, char** argv)
 	if (start_j > 0)
 	{
 		readTrajectories(transforms, registered_transforms, transforms_aligned_to_registered, icp_scores);
+
+		for (int j = 0; j < start_j; j++)
+		{
+			PointXYZ p;
+			p.x = registered_transforms[j].translation()[0];
+			p.y = registered_transforms[j].translation()[1];
+			p.z = registered_transforms[j].translation()[2];
+			lock_guard<mutex> guard(pointcloud_mutex);
+			(*aligned_traj_cloud)[j] = p;
+		}
 	}
 
 	cout << "Initialization took " << timer.getTimeSeconds() << " s" << endl;
@@ -453,6 +457,26 @@ int main (int argc, char** argv)
 
 	for(int j = start_j; j < transforms.size(); j+=num_parallel)
 	{
+		// Skip
+		if (j >= skip_from && j < skip_to)
+		{
+			auto adjusted_transform = transforms[j]; //registered_transforms[j-1] * (transforms[j-1].inverse() * transforms[j]);
+			registered_transforms[j] = adjusted_transform;
+			Eigen::Affine3f tf = transforms[j] * (transforms[0].inverse() * registered_transforms[0]);
+			transforms_aligned_to_registered[j] = tf;
+			icp_scores[j] = -1;
+
+			PointXYZ p;
+			p.x = adjusted_transform.translation()[0];
+			p.y = adjusted_transform.translation()[1];
+			p.z = adjusted_transform.translation()[2];
+
+			lock_guard<mutex> guard(pointcloud_mutex);
+			(*aligned_traj_cloud)[j] = p;
+
+			continue;
+		}
+
 		cout << j+1 << " / " << transforms.size() << endl;
 
 		//this_thread::sleep_for(chrono::milliseconds(200));
@@ -601,7 +625,7 @@ int main (int argc, char** argv)
 				p.x = new_transform.translation()[0];
 				p.y = new_transform.translation()[1];
 				p.z = new_transform.translation()[2];
-
+				
 				registered_transforms[j+k] = new_transform;
 
 				
@@ -676,6 +700,8 @@ int main (int argc, char** argv)
 	pcl::PointCloud<pcl::PointXYZ>::Ptr downsampled_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
 	for(int j = 0; j < registered_transforms.size(); j++)
 	{	
+		if (j >= skip_from && j < skip_to){ continue; }
+		
 		pcl::io::loadPLYFile (paths[j], *orig_slam_cloud);
 		pcl::transformPointCloud (*orig_slam_cloud, *transformed_slam_cloud, registered_transforms[j]);
 		*large_cloud += *transformed_slam_cloud;
