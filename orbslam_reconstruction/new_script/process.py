@@ -193,15 +193,24 @@ if __name__ == '__main__':
     parser.add_argument('-n', '--normals', help='Compute normals on the original model (uses a lot of extra memory)', action='store_true')
     parser.add_argument('-s', '--scale', type=float, default=5.0, help='Apply a scale to the trajectory transforms')
     parser.add_argument('-f', '--filter', help='Apply a filter on depth images (optimized for ZR300)', action='store_true')
+    parser.add_argument('-k2', '--kinectv2', help='Overwrite topic and intrinsics with "/kinect2/qhd/image_depth_rect" and "704.93789601,707.651686128,510.549071964,422.652679909,1000.0", and set the scale to 1', action='store_true')
     args = parser.parse_args()
 
     
     temp_dir = "temp_clouds"
     result_dir = "results"
 
+    topic      = args.topic
+    intrinsics = args.intrinsics
+    scale      = args.scale
+
+    if args.kinectv2:
+        topic = "/kinect2/qhd/image_depth_rect"
+        intrinsics = [704.93789601,707.651686128,510.549071964,422.652679909,1000.0]
+        scale = 1.0
 
     # Parse trajectory, extract depth images from bag file, and generate point clouds
-    generate_all_pointclouds(args.trajectory_file, args.bag_file, args.topic, list(map(float, args.intrinsics)), temp_dir, args.filter, args.num_threads)
+    generate_all_pointclouds(args.trajectory_file, args.bag_file, topic, list(map(float, intrinsics)), temp_dir, args.filter, args.num_threads)
 
 
     # Transform and concatenate all point clouds
@@ -209,7 +218,7 @@ if __name__ == '__main__':
         args.trajectory_file,
         os.path.join(temp_dir, 'pointclouds.txt'),
         '-n' if args.normals else '',
-        '-s ' + str(args.scale)]), shell=True)
+        '-s ' + str(scale)]), shell=True)
 
 
     # Downsample the resulting point cloud
