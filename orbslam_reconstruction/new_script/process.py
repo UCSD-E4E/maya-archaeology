@@ -193,7 +193,9 @@ if __name__ == '__main__':
     parser.add_argument('-n', '--normals', help='Compute normals on the original model (uses a lot of extra memory)', action='store_true')
     parser.add_argument('-s', '--scale', type=float, default=5.0, help='Apply a scale to the trajectory transforms')
     parser.add_argument('-f', '--filter', help='Apply a filter on depth images (optimized for ZR300)', action='store_true')
-    parser.add_argument('-k2', '--kinectv2', help='Overwrite topic and intrinsics with "/kinect2/qhd/image_depth_rect" and "704.93789601,707.651686128,510.549071964,422.652679909,1000.0", and set the scale to 1', action='store_true')
+    parser.add_argument('-k2', '--kinectv2', help='Overwrite topic, intrinsics and scale with whatever is hardcoded in the file (Kinectv2)', action='store_true')
+    parser.add_argument('-zr', '--zr300', help='Overwrite topic, intrinsics and scale with whatever is hardcoded in the file (ZR300)', action='store_true')
+    parser.add_argument('-skip-pc', '--skip-point-clouds', help='Skip the generation of point clouds', action='store_true')
     args = parser.parse_args()
 
     
@@ -207,10 +209,17 @@ if __name__ == '__main__':
     if args.kinectv2:
         topic = "/kinect2/qhd/image_depth_rect"
         intrinsics = [704.93789601,707.651686128,510.549071964,422.652679909,1000.0]
+        #intrinsics = [515.4176041074928,516.892287824608,502.29891677373917,278.43687823838354,1000.0]
+        scale = 1.0
+
+    if args.zr300:
+        topic = "/camera/depth/image_raw"
+        intrinsics = [610.6727905273438,611.0042724609375,317.4177551269531,239.07229614257812,1000.0]
         scale = 1.0
 
     # Parse trajectory, extract depth images from bag file, and generate point clouds
-    generate_all_pointclouds(args.trajectory_file, args.bag_file, topic, list(map(float, intrinsics)), temp_dir, args.filter, args.num_threads)
+    if not args.skip_point_clouds:
+        generate_all_pointclouds(args.trajectory_file, args.bag_file, topic, list(map(float, intrinsics)), temp_dir, args.filter, args.num_threads)
 
 
     # Transform and concatenate all point clouds
