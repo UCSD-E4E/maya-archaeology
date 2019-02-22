@@ -119,7 +119,7 @@ void showViewer()
 	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color3(aligned_traj_cloud, 0, 255, 255);
 	viewer->addPointCloud<PointNormal> (slice_cloud, "Cloud 1");
 	viewer->addPointCloud<PointXYZ> (trajectory_cloud, red_color, "Cloud 2");
-	//viewer->addPointCloud<PointXYZ> (slam_cloud, single_color, "slam_cloud");
+	viewer->addPointCloud<PointXYZ> (slam_cloud, single_color, "slam_cloud");
 	viewer->addPointCloud<PointNormal> (aligned_slam_cloud, single_color2, "aligned_cloud");
 	viewer->addPointCloud<PointXYZ> (aligned_traj_cloud, single_color3, "aligned_traj_cloud");
 	viewer->addCoordinateSystem (1.0);
@@ -133,15 +133,15 @@ void showViewer()
 		lock_guard<mutex> guard(pointcloud_mutex);
 		viewer->removePointCloud("Cloud 1");
 		viewer->addPointCloud<PointNormal> (slice_cloud, "Cloud 1");
-		//viewer->removePointCloud("slam_cloud");
-		//viewer->addPointCloud<PointXYZ> (slam_cloud, single_color, "slam_cloud");
+		viewer->removePointCloud("slam_cloud");
+		viewer->addPointCloud<PointXYZ> (slam_cloud, single_color, "slam_cloud");
 		viewer->removePointCloud("aligned_cloud");
 		viewer->addPointCloud<PointNormal> (aligned_slam_cloud, single_color2, "aligned_cloud");
 		viewer->removePointCloud("aligned_traj_cloud");
 		viewer->addPointCloud<PointXYZ> (aligned_traj_cloud, single_color3, "aligned_traj_cloud");
 		viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, psize, "Cloud 1");
 		viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, psize, "Cloud 2");
-		//viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, psize, "slam_cloud");
+		viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, psize, "slam_cloud");
 		viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, psize, "aligned_cloud");
 		viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, psize, "aligned_traj_cloud");
 		viewer->spinOnce (100);
@@ -610,9 +610,9 @@ int main (int argc, char** argv)
 				icp.setInputTarget(lidar_slice_cloud);
 				icp.setMaximumIterations (25);
 				icp.setTransformationEpsilon (1e-9);
-				icp.setMaxCorrespondenceDistance (0.05);
+				icp.setMaxCorrespondenceDistance (0.05); // 0.05
 				icp.setEuclideanFitnessEpsilon (1);
-				icp.setRANSACOutlierRejectionThreshold (1.5);
+				icp.setRANSACOutlierRejectionThreshold (1.5); // 1.5
 				
 				icp.align(final_cloud); //, global_reg.getFinalTransformation());
 				
@@ -665,12 +665,12 @@ int main (int argc, char** argv)
 
 
 		// temp save
-		if (save_temp < 0)
+		//if (save_temp < 0)
 		{
 			saveTrajectories(transforms, registered_transforms, transforms_aligned_to_registered, icp_scores);
 			save_temp = 10;
 		}
-		save_temp--; // todo
+		//save_temp--; // todo
 	}
 
 
@@ -717,7 +717,7 @@ int main (int argc, char** argv)
 
 	pcl::io::savePLYFile("verif.ply", *verification_cloud, true);
 
-
+	cout << "Done." << endl;
 
 
 	if (display)
