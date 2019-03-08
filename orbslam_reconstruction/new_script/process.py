@@ -195,6 +195,7 @@ if __name__ == '__main__':
     parser.add_argument('-f', '--filter', help='Apply a filter on depth images (optimized for ZR300)', action='store_true')
     parser.add_argument('-k2', '--kinectv2', help='Overwrite topic, intrinsics and scale with whatever is hardcoded in the file (Kinectv2)', action='store_true')
     parser.add_argument('-zr', '--zr300', help='Overwrite topic, intrinsics and scale with whatever is hardcoded in the file (ZR300)', action='store_true')
+    parser.add_argument('-d4', '--d435', help='Overwrite topic, intrinsics and scale with whatever is hardcoded in the file (D435)', action='store_true')
     parser.add_argument('-skip-pc', '--skip-point-clouds', help='Skip the generation of point clouds', action='store_true')
     args = parser.parse_args()
 
@@ -208,13 +209,20 @@ if __name__ == '__main__':
 
     if args.kinectv2:
         topic = "/kinect2/qhd/image_depth_rect"
-        intrinsics = [704.93789601,707.651686128,510.549071964,422.652679909,1000.0]
+        #intrinsics = [704.93789601,707.651686128,510.549071964,422.652679909,1000.0]
         #intrinsics = [515.4176041074928,516.892287824608,502.29891677373917,278.43687823838354,1000.0]
+        intrinsics = [540.68603515625, 540.68603515625, 479.75, 269.75, 1000]
         scale = 1.0
 
     if args.zr300:
         topic = "/camera/depth/image_raw"
-        intrinsics = [610.6727905273438,611.0042724609375,317.4177551269531,239.07229614257812,1000.0]
+        #intrinsics = [610.6727905273438,611.0042724609375,317.4177551269531,239.07229614257812,1000.0]
+        intrinsics = [586.9016723632812,586.9016723632812,319.5,238.3975372314453,1000.0]
+        scale = 1.0
+
+    if args.d435:
+        topic = "/depth/image_rect_raw"
+        intrinsics = [609.7402753653951,609.5743913328723,336.48818584239854,235.25013093588586,1000.0]
         scale = 1.0
 
     # Parse trajectory, extract depth images from bag file, and generate point clouds
