@@ -608,10 +608,10 @@ int main (int argc, char** argv)
 				pcl::IterativeClosestPointWithNormals<pcl::PointNormal, pcl::PointNormal> icp;
 				icp.setInputSource(slam_cloud_normals);
 				icp.setInputTarget(lidar_slice_cloud);
-				icp.setMaximumIterations (25);
+				icp.setMaximumIterations (100); // 25
 				icp.setTransformationEpsilon (1e-9);
-				icp.setMaxCorrespondenceDistance (0.05); // 0.05
-				icp.setEuclideanFitnessEpsilon (1);
+				icp.setMaxCorrespondenceDistance (0.5); // 0.05
+				icp.setEuclideanFitnessEpsilon (0.01); // 1
 				icp.setRANSACOutlierRejectionThreshold (1.5); // 1.5
 				
 				icp.align(final_cloud); //, global_reg.getFinalTransformation());
