@@ -149,9 +149,12 @@ def filter(depth, max_dist=5.0, kernel_size=7):
 
 
 #-------------------------------------------------------
-def generate_all_pointclouds(traj_file, bag_file, bag_topic, intrinsics, temp_dir, apply_filter=False, n_threads = -1):
+def generate_all_pointclouds(traj_file, bag_file, bag_topic, intrinsics, temp_dir, apply_filter=False, n_timestamps=0, n_threads = -1):
 #-------------------------------------------------------
     timestamps = parse_trajectory(traj_file)
+
+    if n_timestamps > 0:
+        timestamps = timestamps[:n_timestamps]
     
     print("Extracting depth images from bag file...")
     images = get_images(bag_file, timestamps, bag_topic)
@@ -194,9 +197,12 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--scale', type=float, default=5.0, help='Apply a scale to the trajectory transforms')
     parser.add_argument('-f', '--filter', help='Apply a filter on depth images (optimized for ZR300)', action='store_true')
     parser.add_argument('-k2', '--kinectv2', help='Overwrite topic, intrinsics and scale with whatever is hardcoded in the file (Kinectv2)', action='store_true')
+    parser.add_argument('-2k1', '--two-kinectv1', help='Overwrite topic, intrinsics and scale with whatever is hardcoded in the file (2 Kinectv1)', action='store_true')
     parser.add_argument('-zr', '--zr300', help='Overwrite topic, intrinsics and scale with whatever is hardcoded in the file (ZR300)', action='store_true')
     parser.add_argument('-d4', '--d435', help='Overwrite topic, intrinsics and scale with whatever is hardcoded in the file (D435)', action='store_true')
+    parser.add_argument('-d4h', '--d435-hd', help='Overwrite topic, intrinsics and scale with whatever is hardcoded in the file (D435 HD)', action='store_true')
     parser.add_argument('-skip-pc', '--skip-point-clouds', help='Skip the generation of point clouds', action='store_true')
+    parser.add_argument('-nt', '--num-timestamps', type=int, default=0, help='Only process n timestamps, for n > 0. (default: %(default)s)')
     args = parser.parse_args()
 
     
@@ -207,10 +213,16 @@ if __name__ == '__main__':
     intrinsics = args.intrinsics
     scale      = args.scale
 
+    if args.two_kinectv1:
+        topic = "/camera1/depth_registered/image_raw"
+        intrinsics = [525.0, 525.0, 319.5, 239.5, 1000]
+        scale = 1.0
+ 
     if args.kinectv2:
         topic = "/kinect2/qhd/image_depth_rect"
-        #intrinsics = [704.93789601,707.651686128,510.549071964,422.652679909,1000.0]
+        #intrinsics = [704.93789601,707.651686128,510.549071964,422.652679909,5000.0]
         #intrinsics = [515.4176041074928,516.892287824608,502.29891677373917,278.43687823838354,1000.0]
+        #intrinsics = [540.68603515625, 540.68603515625, 479.75, 269.75, 1000]
         intrinsics = [540.68603515625, 540.68603515625, 479.75, 269.75, 1000]
         scale = 1.0
 
@@ -222,20 +234,30 @@ if __name__ == '__main__':
 
     if args.d435:
         topic = "/depth/image_rect_raw"
-        intrinsics = [609.7402753653951,609.5743913328723,336.48818584239854,235.25013093588586,1000.0]
+        #intrinsics = [609.7402753653951,609.5743913328723,336.48818584239854,235.25013093588586,1000.0]
+        intrinsics = [382.7500915527344, 382.7500915527344, 318.673828125, 237.220703125, 1000.0]
+        scale = 1.0
+
+    if args.d435_hd:
+        topic = "/depth/image_rect_raw"
+        intrinsics = [928.25, 927.741, 660.562, 355.674, 1000.0]
         scale = 1.0
 
     # Parse trajectory, extract depth images from bag file, and generate point clouds
     if not args.skip_point_clouds:
-        generate_all_pointclouds(args.trajectory_file, args.bag_file, topic, list(map(float, intrinsics)), temp_dir, args.filter, args.num_threads)
+        generate_all_pointclouds(args.trajectory_file, args.bag_file, topic, list(map(float, intrinsics)), temp_dir, args.filter, args.num_timestamps, args.num_threads)
 
 
     # Transform and concatenate all point clouds
+    voxel_size = 0.05
+    if int(intrinsics[4]) == 5000 and int(scale) == 1:
+        voxel_size = 0.01
     subprocess.call(" ".join([os.path.join('build', 'transform_concat'),
         args.trajectory_file,
         os.path.join(temp_dir, 'pointclouds.txt'),
         '-n' if args.normals else '',
-        '-s ' + str(scale)]), shell=True)
+        '-s ' + str(scale),
+        '-v ' + str(voxel_size)]), shell=True)
 
 
     # Downsample the resulting point cloud
