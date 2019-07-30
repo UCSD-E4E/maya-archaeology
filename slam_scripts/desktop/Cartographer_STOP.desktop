@@ -1,0 +1,11 @@
+#!/usr/bin/env xdg-open
+[Desktop Entry]
+Version=1.0
+Type=Application
+Terminal=true
+Icon[en_US]=gnome-panel-launcher
+Name[en_US]=Cartographer_STOP
+Exec=/home/e4e/cartographer_ws/save_cartographer.sh
+Path=/home/e4e/cartographer_ws/
+Name=Cartographer_STOP
+Icon=gnome-panel-launcher

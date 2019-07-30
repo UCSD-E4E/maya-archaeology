@@ -1,0 +1,7 @@
+#Accelerometers
+acc_noise_density: 1.50e-04   #Noise density (continuous-time)
+acc_bias_random_walk_noise_density:   0.002124   #Bias random walk
+
+#Gyroscopes
+gyro_noise_density:     2.443461e-04   #Noise density (continuous-time)
+gyro_bias_random_walk_noise_density:    0.000164      #Bias random walk

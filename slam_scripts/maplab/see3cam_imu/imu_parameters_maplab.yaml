@@ -1,0 +1,11 @@
+id: 603c29ba8632eec5442da1c009c098e7
+hardware_id: /tfsensors/imu1
+sensor_type: IMU
+sigmas:
+  gyro_noise_density: 0.0002443461
+  gyro_bias_random_walk_noise_density: 0.000164
+  acc_noise_density: 0.00015
+  acc_bias_random_walk_noise_density: 0.002124
+saturation_accel_max_mps2: 16
+saturation_gyro_max_radps: 34.90659
+gravity_magnitude_mps2: 9.81

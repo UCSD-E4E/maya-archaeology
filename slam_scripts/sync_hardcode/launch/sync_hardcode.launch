@@ -1,0 +1,3 @@
+<launch>
+	<node name="sync_hardcode" pkg="sync_hardcode" type="sync_hardcode" />
+</launch>

@@ -1,0 +1,70 @@
+<launch> 
+
+  <arg name="record" default="true" />
+  <arg name="record_prefix" default="realsense2" />
+
+  <arg name="playback" default="false" />
+  <arg name="playback_file" default="" />
+
+	<!-- Kill the application at the end of the playback-->
+  <arg name="playback_kill" default="false" />
+
+	<arg name="playback_speed" default="1.0" />
+
+  <node pkg="rosbag" type="record" name="rosbag_record_realsense2"
+        args="-o $(arg record_prefix)
+              /aligned_depth_to_color/image_raw
+		      /color/camera_info
+              /color/image_raw/compressed
+              /depth/camera_info
+              /depth/image_rect_raw
+              /realsense2_camera_manager/parameter_descriptions
+              /realsense2_camera_manager/parameter_updates
+              /tf
+              /tf_static"
+        if="$(arg record)"/>
+
+
+
+  <param name="/camera/color/image_raw/compressed/jpeg_quality" type="int" value="85"/>
+
+
+  <param name="orb_use_viewer" value="false"/>
+
+  <include file="$(find realsense2_camera)/launch/includes/nodelet.launch.xml" unless="$(arg playback)">
+	  <arg name="serial_no" value="814412070369" />
+	  <arg name="align_depth" value="true"/>
+	  <arg name="enable_sync" value="true"/>
+  </include>
+
+
+  <arg name="yaml_file" default="/home/e4e/workspace/ORB_SLAM2/Examples/RGB-D/d435.yaml" />
+
+  <node pkg="ORB_SLAM2" type="RGBD" name="ORB_SLAM2" 
+        args="/home/e4e/workspace/ORB_SLAM2/Vocabulary/ORBvoc.txt $(arg yaml_file)"
+		cwd="node" output="screen">
+
+    <remap from="/camera/rgb/image_raw" to="/color/image_raw" />
+	<remap from="/camera/depth_registered/image_raw" to="/depth/image_rect_raw" />
+  </node>
+
+
+  <group if="$(arg playback)">
+    
+	<node pkg="image_transport" type="republish" name="decompress_image"
+          args="compressed in:=/compressed/color/image_raw out:=/color/image_raw" />
+	
+	<!--
+	<node pkg="image_transport" type="republish" name="decompress_fisheye"
+          args="compressed in:=/compressed/fisheye/image_raw out:=/camera/fisheye/image_raw" />
+    -->
+
+    <node pkg="rosbag" type="play" name="rosbag_play_realsense2"
+		args="$(arg playback_file) -d 2 --clock --rate $(arg playback_speed)"
+		required="$(arg playback_kill)" >
+      <remap from="/color/image_raw/compressed" to="/compressed/color/image_raw/compressed" />
+    </node>
+  </group>
+
+
+</launch>

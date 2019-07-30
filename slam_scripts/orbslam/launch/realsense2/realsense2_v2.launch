@@ -1,0 +1,7 @@
+<launch>
+
+ <include file="nodelet_v2.launch.xml">
+    <arg name="serial_no" value="814412070369" />
+  </include>
+  
+</launch>

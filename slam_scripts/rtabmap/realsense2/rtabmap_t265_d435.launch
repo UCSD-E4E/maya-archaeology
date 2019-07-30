@@ -1,0 +1,107 @@
+<launch>
+
+  <arg name="record" default="true" />
+
+
+  <arg name="serial_no_camera1"    		default="845412110514"/>
+  <arg name="serial_no_camera2"    		default="814412071723"/>
+  <arg name="camera1"              		default="t265"/>
+  <arg name="camera2"              		default="d435"/>
+  <arg name="tf_prefix_camera1"         default="$(arg camera1)"/>
+  <arg name="tf_prefix_camera2"         default="$(arg camera2)"/>
+  <arg name="initial_reset"             default="false"/>
+  <arg name="enable_fisheye"            default="true"/>
+  <arg name="color_width"               default="640"/>
+  <arg name="color_height"              default="480"/>
+  <arg name="depth_width"               default="640"/>
+  <arg name="depth_height"              default="480"/>
+  <arg name="depth_fps"                 default="30"/>
+  <arg name="infra_fps"                 default="30"/>
+  <arg name="color_fps"                 default="30"/>
+  <arg name="clip_distance"             default="-2"/>
+  <arg name="topic_odom_in"             default="odom_in"/>
+  <arg name="calib_odom_file"           default=""/>
+  <arg name="unite_imu_method"          default="linear_interpolation"/>
+  
+  <arg name="frame_id" 				  default="$(arg camera2)_link"/>
+
+
+  <group ns="$(arg camera1)">
+    <include file="$(find realsense2_camera)/launch/includes/nodelet.launch.xml">
+      <arg name="serial_no"             value="$(arg serial_no_camera1)"/>
+      <arg name="tf_prefix"         	value="$(arg tf_prefix_camera1)"/>
+      <arg name="initial_reset"         value="$(arg initial_reset)"/>
+      <arg name="enable_fisheye1"       value="$(arg enable_fisheye)"/>
+      <arg name="enable_fisheye2"       value="$(arg enable_fisheye)"/>
+      <arg name="topic_odom_in"         value="$(arg topic_odom_in)"/>
+      <arg name="calib_odom_file"       value="$(arg calib_odom_file)"/>
+      <arg name="unite_imu_method"      value="$(arg unite_imu_method)"/>
+    </include>
+  </group>
+
+  <group ns="$(arg camera2)">
+    <include file="$(find realsense2_camera)/launch/includes/nodelet.launch.xml">
+      <arg name="serial_no"             value="$(arg serial_no_camera2)"/>
+      <arg name="tf_prefix"		          value="$(arg tf_prefix_camera2)"/>
+      <arg name="initial_reset"         value="$(arg initial_reset)"/>
+      <arg name="align_depth"           value="true"/>
+      <arg name="color_width"           value="$(arg color_width)"/>
+      <arg name="color_height"          value="$(arg color_height)"/>
+      <arg name="depth_width"           value="$(arg depth_width)"/>
+      <arg name="depth_height"          value="$(arg depth_height)"/>
+      <arg name="infra_width"           value="$(arg depth_width)"/>
+      <arg name="infra_height"          value="$(arg depth_height)"/>
+      <arg name="depth_fps"             value="$(arg depth_fps)"/>
+      <arg name="infra_fps"             value="$(arg infra_fps)"/>
+      <arg name="color_fps"             value="$(arg color_fps)"/>
+      <arg name="clip_distance"         value="$(arg clip_distance)"/>
+    </include>
+  </group>
+
+
+  <node pkg="rosbag" type="record" name="rosbag_record"
+        args="-o d435_t265
+		      /t265/fisheye1/camera_info
+			  /t265/fisheye1/image_raw
+			  /t265/fisheye2/camera_info
+              /t265/fisheye2/image_raw
+		      /t265/accel/imu_info
+			  /t265/accel/sample
+			  /t265/gyro/imu_info
+			  /t265/gyro/sample
+			  /t265/odom/sample
+			  /t265/imu
+			  /t265/realsense2_camera_manager/bond
+			  /t265/tracking_module/parameter_descriptions
+			  /t265/tracking_module/parameter_updates
+			  /d435/color/camera_info
+              /d435/color/image_raw/compressed
+			  /d435/aligned_depth_to_color/camera_info
+			  /d435/aligned_depth_to_color/image_raw
+			  /d435/realsense2_camera_manager/bond
+			  /d435/rgb_camera/parameter_descriptions
+			  /d435/rgb_camera/parameter_updates
+			  /d435/stereo_module/parameter_descriptions
+			  /d435/stereo_module/parameter_updates
+			  /tf
+              /tf_static"
+			  if="$(arg record)"/>
+
+  <include file="$(find rtabmap_ros)/launch/rtabmap.launch">
+	  <arg name="depth_topic"        value="/$(arg camera2)/aligned_depth_to_color/image_raw"/>
+	  <arg name="frame_id"           value="$(arg frame_id)"/>
+	  <arg name="visual_odometry"    value="false"/>
+	  <arg name="odom_topic"         value="/$(arg camera1)/odom/sample"/>
+	  <arg name="rgb_topic"          value="/$(arg camera2)/color/image_raw"/>
+	  <arg name="camera_info_topic"  value="/$(arg camera2)/color/camera_info"/>
+	  <arg name="queue_size"         value="10"/>
+	  <arg name="wait_for_transform" value="0.2"/>
+	  <arg name="database_path"      value="~/.ros/rtabmap.db" />
+  </include>
+
+  <!-- First is the inverse transform from link to color_optical_frame -->
+  <node pkg="tf" type="static_transform_publisher" name="base_to_d435" args="1.49996100e-02 -5.99091613e-05  9.00587392e-05 2.8178421 -1.56447181 -1.25104577 /base_link /d435_link 100"/>
+  <!-- Then is the actual transform from t265 to d435 -->
+  <node pkg="tf" type="static_transform_publisher" name="t265_to_base" args="-0.06408783  0.10428206  0.00982176 -0.00882525 -0.00891506  0.01324065 /t265_fisheye2_optical_frame /base_link 100"/>
+
+</launch>

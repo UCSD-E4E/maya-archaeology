@@ -1,0 +1,1 @@
+kalibr_calibrate_cameras --target [target.yaml] --bag [file.bag] --models [MODEL_0 MODEL_1 ...] --topics [TOPIC_0 TOPIC_1 ...]

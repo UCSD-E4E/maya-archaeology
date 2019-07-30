@@ -1,0 +1,10 @@
+<launch>
+	<node name="sync_example" pkg="sync_example" type="sync_example">
+
+		<remap from="/real_camera/color/image_raw" to="in1" />
+		<remap from="/kinect_camera1/rgb/image_raw" to="in2" />
+		<remap from="/kinect_camera2/rgb/image_raw" to="in3" />
+
+	</node>
+
+</launch>

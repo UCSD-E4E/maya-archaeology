@@ -1,0 +1,77 @@
+<launch>
+    
+  <arg name="record" default="true" />
+  <arg name="record_prefix" default="kinectv1" />
+
+  <arg name="playback" default="false" />
+  <arg name="playback_file" default="" />
+
+	<!-- Kill the application at the end of the playback-->
+  <arg name="playback_kill" default="false" />
+
+	<arg name="playback_speed" default="1.0" />
+
+	<arg name="camera" default="camera" />
+
+
+	<param name="use_sim_time" value="true" if="$(arg playback)" />
+
+  <node pkg="rosbag" type="record" name="rosbag_record_kinectv1"
+        args="-o $(arg record_prefix)
+              /$(arg camera)/rgb/camera_info
+              /$(arg camera)/rgb/image_rect_color/compressed
+              /$(arg camera)/depth_registered/camera_info
+			  			/$(arg camera)/depth_registered/image_raw
+              /tf
+              /tf_static
+							/counter"
+        if="$(arg record)"/>
+
+ 
+  <include unless="$(arg playback)"
+           file="$(find freenect_launch)/launch/freenect.launch"> 
+    <!-- use device registration --> 
+    <arg name="depth_registration" value="true" /> 
+    <arg name="rgb_processing" value="true" /> 
+    <arg name="ir_processing" value="false" /> 
+    <arg name="depth_processing" value="false" /> 
+    <arg name="depth_registered_processing" value="true" /> 
+    <arg name="disparity_processing" value="false" /> 
+    <arg name="disparity_registered_processing" value="false" /> 
+    <arg name="sw_registered_processing" value="false" /> 
+    <arg name="hw_registered_processing" value="true" /> 
+  </include> 
+
+
+`
+
+  <include file="$(find rtabmap_ros)/launch/rtabmap.launch">
+    <arg name="rgb_topic"         value="/$(arg camera)/rgb/image_rect_color" />
+    <arg name="depth_topic"       value="/$(arg camera)/depth_registered/image_raw" />
+    <arg name="camera_info_topic" value="/$(arg camera)/rgb/camera_info" />
+	<arg name="database_path"     value="~/.ros/rtabmap.db" />
+  </include>
+  
+	<!-- Counting messages published to camera/rgb/image_rect_color to see if rosbag record is dropping any messages -->
+	<node pkg="message_counter" type="counter_one_topic" name="counter"
+					args="topic:=/$(arg camera)/rgb/image_rect_color/compressed" />
+
+  <group if="$(arg playback)">
+    
+  <!-- Only needed when doing single-camera SLAM from a multi-camera bag file
+	<include file="camera_frames.launch" >
+		<arg name="camera" value="$(arg camera)" />
+	</include>
+  -->
+	<node pkg="image_transport" type="republish" name="decompress_image"
+          args="compressed in:=/compressed/rgb/image_rect_color out:=/$(arg camera)/rgb/image_rect_color" />
+	
+    <node pkg="rosbag" type="play" name="rosbag_play_kinectv1"
+          args="$(arg playback_file) -d 2 --clock --rate $(arg playback_speed)"
+					required="$(arg playback_kill)" >
+      <remap from="/$(arg camera)/rgb/image_rect_color/compressed" to="/compressed/rgb/image_rect_color/compressed" />
+    </node>
+
+  </group>
+
+</launch>

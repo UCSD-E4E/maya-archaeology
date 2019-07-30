@@ -1,0 +1,1 @@
+kalibr_calibrate_cameras --target april_8x11.yaml --models pinhole-radtan pinhole-radtan pinhole-radtan --topics /usb/image_color /kinect_1/image_color /kinect_2/image_color --bag 

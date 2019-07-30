@@ -1,0 +1,51 @@
+<launch>
+
+  <param name="use_sim_time" value="true" />
+
+  <!--
+  <node pkg="tf" type="static_transform_publisher" name="base_to_camera3_tf"
+	  args="-0.200 0.100 -0.004 -2.000 -0.032 -1.597 /base_link /camera3_frame 100" >
+  </node>
+  -->
+
+  <node pkg="tf2_ros" type="static_transform_publisher" name="base_to_camera3_tf"
+	  args="-0.200 0.100 -0.004 -2.000 -0.032 -1.597 /base_link /camera3_frame" >
+  </node>
+
+  <node pkg="rosbag" type="play" name="rosbag_play_bag"
+        args="/home/e4e/data/two_kinectv1_2019-05-24-14-24-14.bag -d 1 --clock"
+		required="true" >
+  </node>
+
+
+
+
+  <!-- Nodelet manager for this pipeline -->
+  <node pkg="nodelet" type="nodelet" args="manager"
+        name="record_player_manager" output="screen"/>
+
+
+
+  <!-- Convert depth map to a point cloud -->
+  <node pkg="nodelet" type="nodelet" name="cloudify1"
+        args="load depth_image_proc/point_cloud_xyz record_player_manager --no-bond">
+    <remap from="camera_info" to="camera1/depth_registered/camera_info"/>
+    <remap from="image_rect" to="camera1/depth_registered/image_raw"/>
+    <remap from="points" to="points1"/>
+  </node>
+
+  <!-- Convert depth map to a point cloud -->
+  <node pkg="nodelet" type="nodelet" name="cloudify2"
+        args="load depth_image_proc/point_cloud_xyz record_player_manager --no-bond">
+    <remap from="camera_info" to="camera2/depth_registered/camera_info"/>
+    <remap from="image_rect" to="camera2/depth_registered/image_raw"/>
+    <remap from="points" to="points2"/>
+  </node>
+
+
+  <node pkg="pcl_fuse" type="pcl_fuse" name="merge_clouds" output="screen">
+    <remap from="/depth1_info" to="/camera1/depth_registered/camera_info"/>
+  </node>
+
+
+</launch>

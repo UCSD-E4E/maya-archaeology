@@ -1,0 +1,38 @@
+<launch> 
+
+  <arg name="playback" default="true" />
+  <arg name="playback_file" default="" />
+
+
+  <param name="/color/image_raw/compressed/jpeg_quality" type="int" value="85"/>
+
+
+  <param name="orb_use_viewer" value="false"/>
+
+
+  <arg name="yaml_file" default="/home/e4e/workspace/maya_archaeology/orbslam/launch/d435_v2.yaml" />
+
+  <node pkg="ORB_SLAM2" type="RGBD" name="ORB_SLAM2" 
+        args="/home/e4e/workspace/ORB_SLAM2/Vocabulary/ORBvoc.txt $(arg yaml_file)"
+		cwd="node" output="screen">
+
+    <remap from="/camera/rgb/image_raw" to="/color/image_raw" />
+    <remap from="/camera/depth_registered/image_raw" to="/depth/image_rect_raw" />
+  </node>
+
+
+  <group if="$(arg playback)">
+    
+	<node pkg="image_transport" type="republish" name="decompress_image"
+          args="compressed in:=/compressed/color/image_raw out:=/color/image_raw" />
+	
+<!-- rosbag play does not work on large bag files when called from a launch file
+    <node pkg="rosbag" type="play" name="rosbag_play_realsense"
+          args="$(arg playback_file) -d 2 -jjjjjjjjjjjjjjjjjjjjjjjjjjjj-clock">
+      <remap from="/color/image_raw/compressed" to="/compressed/color/image_raw/compressed" />
+    </node>
+-->
+
+  </group>
+
+</launch>

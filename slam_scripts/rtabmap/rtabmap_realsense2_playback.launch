@@ -1,0 +1,37 @@
+<launch>
+    
+  <arg name="playback" default="true" />
+  <arg name="playback_file" default="" />
+
+  <param name="use_sim_time" value="true" />
+
+  <include file="$(find rtabmap_ros)/launch/rtabmap.launch">
+    <arg name="rgb_topic"         value="/color/image_raw" />
+    <arg name="depth_topic"       value="/aligned_depth_to_color/image_raw" />
+    <arg name="camera_info_topic" value="/color/camera_info" />
+		<param name="subscribe_rgbd"		value="false" />
+		<param name="subscribe_depth"		value="true" />
+  </include>
+  
+  
+  <node name="imu_resample_node" pkg="imu_resample"
+      type="imu_resample_node" >
+  </node>
+  
+
+  <group if="$(arg playback)">
+    
+	<node pkg="image_transport" type="republish" name="decompress_image"
+          args="compressed in:=/compressed/color/image_raw out:=/color/image_raw" />
+	
+<!--
+    <node pkg="rosbag" type="play" name="rosbag_play_realsense"
+          args="$(arg playback_file) -d 2 -jjjjjjjjjjjjjjjj-clock">
+      <remap from="/color/image_raw/compressed" to="/compressed/color/image_raw/compressed" />
+    </node>
+-->
+ 
+  </group>
+  
+
+</launch>

@@ -1,0 +1,30 @@
+<launch>
+
+  <arg name="record" default="true" />
+
+  <node name="usb_cam" pkg="usb_cam" type="usb_cam_node" output="screen" >
+    <param name="video_device" value="/dev/video1" />
+    <param name="image_width" value="640" />
+    <param name="image_height" value="480" />
+    <param name="pixel_format" value="uyvy" />
+    <param name="camera_frame_id" value="usb_cam" />
+    <param name="io_method" value="mmap"/>
+  </node>
+
+  <node name="tfsensors" pkg="tinkerforge_sensors" type="tinkerforge_sensors_node" output="screen" clear_params="true">
+	<rosparam param="sensor_conf" file="$(find tinkerforge_sensors)/launch/conf.yaml" />
+    <param name="rate" value="100"/>
+  </node>
+
+
+
+  <!--
+  <node pkg="rosbag" type="record" name="rosbag_record" if="$(arg record)"
+        args="-o see3cam_imu
+		      /usb_cam/image_raw
+			  /tfsensors/imu1
+			  /tf
+              /tf_static" />
+  -->
+
+</launch>

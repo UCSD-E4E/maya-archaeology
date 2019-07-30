@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package>
+  <name>pcl_fuse</name>
+  <version>0.0.0</version>
+  <description>The pcl_fuse package</description>
+
+  <maintainer email="qkgautier@gmail.com">qkgautier</maintainer>
+
+
+  <license>TODO</license>
+
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <export>
+  </export>
+</package>

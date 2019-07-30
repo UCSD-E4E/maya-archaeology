@@ -1,0 +1,70 @@
+<launch>
+
+    
+  <arg name="record" default="true" />
+  <arg name="record_prefix" default="kinectv1" />
+
+  <arg name="playback" default="false" />
+  <arg name="playback_file" default="" />
+
+	<!-- Kill the application at the end of the playback-->
+  <arg name="playback_kill" default="false" />
+
+	<arg name="playback_speed" default="1.0" />
+
+
+  <node pkg="rosbag" type="record" name="rosbag_record_kinectv1"
+        args="-o $(arg record_prefix)
+              /camera/rgb/camera_info
+              /camera/rgb/image_rect_color/compressed
+              /camera/depth_registered/camera_info
+              /camera/depth_registered/image_raw
+              /tf
+              /tf_static"
+        if="$(arg record)"/>
+
+
+  <include unless="$(arg playback)"
+           file="$(find freenect_launch)/launch/freenect.launch"> 
+    <!-- use device registration --> 
+    <arg name="depth_registration" value="true" /> 
+    <arg name="rgb_processing" value="true" /> 
+    <arg name="ir_processing" value="false" /> 
+    <arg name="depth_processing" value="false" /> 
+    <arg name="depth_registered_processing" value="true" /> 
+    <arg name="disparity_processing" value="false" /> 
+    <arg name="disparity_registered_processing" value="false" /> 
+    <arg name="sw_registered_processing" value="false" /> 
+    <arg name="hw_registered_processing" value="true" /> 
+  </include> 
+
+
+
+
+  <param name="orb_use_viewer" value="false"/>
+
+  <node pkg="ORB_SLAM2" type="RGBD" name="ORB_SLAM2" 
+        args="/home/e4e/workspace/ORB_SLAM2/Vocabulary/ORBvoc.txt 
+		      /home/e4e/workspace/maya_archaeology/orbslam/launch/kinectv1_generic.yaml"
+		cwd="node" output="screen">
+
+    
+    <remap from="/camera/rgb/image_raw" to="/camera/rgb/image_rect_color" />
+    <remap from="/camera/depth_registered/image_raw" to="/camera/depth_registered/image_raw" />
+  </node>
+
+
+  <group if="$(arg playback)">
+    
+	<node pkg="image_transport" type="republish" name="decompress_image"
+          args="compressed in:=/compressed/rgb/image_rect_color out:=/camera/rgb/image_rect_color" />
+	
+    <node pkg="rosbag" type="play" name="rosbag_play_kinectv1"
+          args="$(arg playback_file) -d 2 --clock --rate $(arg playback_speed)"
+					required="$(arg playback_kill)" >
+      <remap from="/camera/rgb/image_rect_color/compressed" to="/compressed/rgb/image_rect_color/compressed" />
+    </node>
+  </group>
+
+
+</launch>

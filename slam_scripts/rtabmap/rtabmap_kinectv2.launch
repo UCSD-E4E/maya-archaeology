@@ -1,0 +1,79 @@
+<launch>
+    
+  <arg name="record" default="true" />
+  <arg name="record_prefix" default="kinectv2" />
+
+  <arg name="playback" default="false" />
+  
+  <arg name="playback_file" default="" />
+  
+	<!-- Kill the application at the end of the playback-->
+  <arg name="playback_kill" default="false" />
+
+	<arg name="playback_speed" default="1.0" />
+
+
+  <node pkg="rosbag" type="record" name="rosbag_record_kinectv2"
+        args="-o $(arg record_prefix)
+              /kinect2/bond
+              /kinect2/hd/camera_info
+              /kinect2/hd/image_color/compressed
+              /kinect2/qhd/camera_info
+              /kinect2/qhd/image_color_rect/compressed
+              /kinect2/qhd/image_depth_rect
+			  /tfsensors/imu1
+              /tf
+              /tf_static"
+        if="$(arg record)"/>
+
+ 
+  <include unless="$(arg playback)"
+           file="$(find kinect2_bridge)/launch/kinect2_bridge.launch">
+    <arg name="publish_tf" value="true" />
+    <arg name="max_depth" value="8" />
+  </include>
+
+
+  <!-- Note: sensor_conf should point to a yaml config file with the IMU UID and set frame_id to 'imu_link' -->
+  <!--
+  <node unless="$(arg playback)"
+        pkg="tinkerforge_sensors" type="tinkerforge_sensors_node" name="imu_node">
+    <param name="rate" type="int" value="500"/>
+	<rosparam param="sensor_conf" file="$(find tinkerforge_sensors)/launch/conf.yaml" />
+  </node>
+
+
+  <node pkg="tf" type="static_transform_publisher" name="rgb_to_imu_tf"
+        args="0.0 0.0 0.0 0.0 0.0 1.5707963268 kinect2_ir_optical_frame imu_link 100" />
+  <!-j- Current IMU configuration is -90 deg about X -j->
+-->
+
+`
+   <!-- Rotate the camera -->
+   <arg name="pi/2" value="1.5707963267948966"/>
+   <arg name="optical_rotate" value="0 0 0 -$(arg pi/2) 0 -$(arg pi/2)" />
+   <node pkg="tf" type="static_transform_publisher" name="kinect2_base_link"
+        args="$(arg optical_rotate) kinect2_base_link kinect2_link 100" /> 
+
+
+  <include file="$(find rtabmap_ros)/launch/rtabmap.launch">
+    <arg name="rgb_topic"         value="/kinect2/qhd/image_color_rect" />
+    <arg name="depth_topic"       value="/kinect2/qhd/image_depth_rect" />
+    <arg name="camera_info_topic" value="/kinect2/qhd/camera_info" />
+	<arg name="frame_id"          value="kinect2_base_link" />
+    <arg name="database_path"     value="~/.ros/rtabmap.db"/>
+  </include>
+  
+	<node pkg="image_transport" type="republish" name="decompress_image"
+          args="compressed in:=/compressed/qhd/image_color_rect out:=/kinect2/qhd/image_color_rect" />
+	
+
+  <node pkg="rosbag" type="play" name="rosbag_play_kinectv2"
+        args="$(arg playback_file) -d 2 --clock --rate $(arg playback_speed)"
+		if="$(arg playback)"
+		required="$(arg playback_kill)" >
+		<remap from="/kinect2/qhd/image_color_rect/compressed" to="/compressed/qhd/image_color_rect/compressed" />
+	</node>
+  
+
+</launch>
