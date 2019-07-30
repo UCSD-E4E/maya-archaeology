@@ -674,6 +674,13 @@ int main (int argc, char** argv)
 	}
 
 
+	// Recompute the aligned slam trajectory, in case we skipped some in the loop above
+	for(int j = 0; j < transforms.size(); j++)
+	{
+		Eigen::Affine3f tf = transforms[j] * (transforms[0].inverse() * registered_transforms[0]);
+		transforms_aligned_to_registered[j] = tf;
+	}
+
 
 	// ---
 	// Save output
